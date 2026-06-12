@@ -1,8 +1,5 @@
 # Astralis — Production Deployment (Vercel + astralis.com.au)
 
-TEST
-
-
 A production-ready HTTPS setup for the Astralis star-naming site, deployed as a Next.js project on Vercel.
 
 The site itself lives in `public/index.html` and is served at the root URL via a rewrite. The Next.js layer provides the security headers, redirects and middleware around it, and gives you a real app framework to grow into (checkout APIs, sessions, etc).
