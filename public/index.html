@@ -2059,7 +2059,7 @@ function buildBlackHole(){
   grp.lookAt(0,0,0);
   grp.rotateX(1.05);                        /* tilt the disk for a strong 3D look */
   grp.rotateZ(0.6);
-  const R=105;                              /* a touch smaller */
+  const R=70;                               /* 2/3 of the previous size (105) */
   /* accretion disk: a tilted glowing plane with a hole in the centre */
   const disk=new THREE.Mesh(new THREE.PlaneGeometry(R*3.1,R*3.1),
     new THREE.MeshBasicMaterial({map:blackHoleDiskTexture(),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false}));
