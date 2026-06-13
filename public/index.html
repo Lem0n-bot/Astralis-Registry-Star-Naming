@@ -236,7 +236,9 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 @media(max-width:900px){.tiers{grid-template-columns:1fr;max-width:440px;margin-left:auto;margin-right:auto}}
 
 /* ============ PERSONALISE ============ */
-.pers{background:radial-gradient(900px 500px at 80% 10%,rgba(123,92,240,.12),transparent 60%)}
+/* hidden until a star is claimed and a package chosen (.unlocked) */
+.pers{display:none;background:radial-gradient(900px 500px at 80% 10%,rgba(123,92,240,.12),transparent 60%)}
+.pers.unlocked{display:block}
 .pers-grid{display:grid;grid-template-columns:1fr 1.05fr;gap:3.6rem;align-items:start;margin-top:2.6rem}
 .field{margin-bottom:1.2rem}
 .field label{display:block;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:.45rem}
@@ -478,8 +480,8 @@ footer a:hover{color:var(--gold)}
       <p class="sub">Four steps between you and an unforgettable moment.</p>
     </div>
     <div class="steps">
-      <div class="step fx"><h4>Choose a package</h4><p>Pick the gift level that suits the occasion, from instant digital to framed luxury.</p></div>
-      <div class="step fx d1"><h4>Explore and claim your star</h4><p>Fly through our interactive galaxy and discover the star that feels like theirs.</p></div>
+      <div class="step fx"><h4>Explore and claim your star</h4><p>Fly through our interactive galaxy and discover the star that feels like theirs.</p></div>
+      <div class="step fx d1"><h4>Choose a package</h4><p>Pick the gift level that suits the occasion, from instant digital to framed luxury.</p></div>
       <div class="step fx d2"><h4>Personalise the certificate</h4><p>Add their name, the occasion and a message. Watch the preview update live.</p></div>
       <div class="step fx d3"><h4>Receive your gift package</h4><p>Instant digital delivery, with printed and framed keepsakes shipped worldwide.</p></div>
     </div>
@@ -564,7 +566,7 @@ footer a:hover{color:var(--gold)}
           </div>
         </div>
         <div class="field"><label for="f-msg">Custom message</label><textarea id="f-msg" maxlength="120" placeholder="A few words they'll keep forever..."></textarea></div>
-        <button class="btn btn-gold" id="persContinue">Continue to Checkout</button>
+        <button class="btn btn-gold" id="persContinue">Add to Bag · Checkout</button>
       </div>
       <div class="cert-stage fx d2">
         <div class="cert" id="liveCert" aria-label="Live certificate preview"></div>
@@ -748,7 +750,7 @@ footer a:hover{color:var(--gold)}
       <span><span class="dot ft"></span>Featured premium</span>
       <span><span class="dot earth"></span>Earth · you are here</span>
     </div>
-    <div class="exp-hint" id="expHint">Drag to explore · Scroll to fly closer · Click a star to claim it</div>
+    <div class="exp-hint" id="expHint">Drag to explore · Middle-click drag to pan · Scroll to fly closer · Click a star to claim it</div>
   </div>
   <div class="star-tip" id="starTip" aria-hidden="true">
     <h4 id="tipName">AST-104782</h4>
@@ -1183,13 +1185,19 @@ const SECTORS=['Inner Core','Orion Spur','Outer Arm','Perseus Arm','Norma Arm','
 function rndDir(){const u=Math.random()*2-1,a=Math.random()*Math.PI*2,s=Math.sqrt(1-u*u);return new THREE.Vector3(s*Math.cos(a),s*Math.sin(a),u);}
 /* deterministic per-star pseudo-random */
 function h1(i,salt){let x=Math.sin(i*127.1+salt*311.7)*43758.5453;return x-Math.floor(x);}
+/* galaxy geometry shared by the scene builder and the star catalogue */
+const GALAXY_RMAX=260,GALAXY_TWIST=4.4;
+/* Earth (our Sun) on the Orion Spur — the reference point for catalogued distances */
+const EARTH_POS=(()=>{const r=150,ang=r/GALAXY_RMAX*GALAXY_TWIST+0.45;return new THREE.Vector3(Math.cos(ang)*r,1.5,Math.sin(ang)*r);})();
+/* scene units -> light years, sized so the far rim of the galaxy reads ~7,900 ly */
+const LY_PER_UNIT=19.2;
 function starInfo(i,pos){
   const id='AST-'+String(100000+(i*7919)%900000);
   const r=h1(i,1);
   const status=r<0.20?'reserved':(r>0.985?'featured':'available');
   const spec=SPECTRAL[Math.floor(h1(i,2)*SPECTRAL.length)];
   const mag=(1.2+h1(i,3)*11).toFixed(2);
-  const dist=Math.round(4+Math.pow(h1(i,4),2)*7900);
+  const dist=Math.round(6+pos.distanceTo(EARTH_POS)*LY_PER_UNIT);
   const ang=(Math.atan2(pos.z,pos.x)+Math.PI)/(2*Math.PI);
   const ci=Math.floor(ang*CONSTELLATIONS.length)%CONSTELLATIONS.length;
   const raH=Math.floor(ang*24),raM=Math.floor((ang*24%1)*60),raS=Math.floor((((ang*24%1)*60)%1)*60);
@@ -1294,7 +1302,7 @@ function buildGalaxy(){
   E.renderer.setClearColor(0x080b1f);
 
   /* --- procedural spiral galaxy --- */
-  const N=38000,ARMS=3,RMAX=260,TWIST=4.4;
+  const N=38000,ARMS=3,RMAX=GALAXY_RMAX,TWIST=GALAXY_TWIST;
   const pos=new Float32Array(N*3),col=new Float32Array(N*3);
   const cWarm=new THREE.Color(0xffe9c4),cBlue=new THREE.Color(0xbcd0ff),cWhite=new THREE.Color(0xf2f2ff),tmp=new THREE.Color();
   for(let i=0;i<N;i++){
@@ -1378,8 +1386,7 @@ function buildGalaxy(){
 
   /* --- Earth marker: our Sun's place on the Orion Spur --- */
   {
-    const r=150, ang=r/RMAX*TWIST+0.45;     /* sits on one of the spiral arms */
-    E.earthPos=new THREE.Vector3(Math.cos(ang)*r,1.5,Math.sin(ang)*r);
+    E.earthPos=EARTH_POS.clone();           /* sits on one of the spiral arms */
     const eTex=spriteTexture('rgba(200,235,255,1)','rgba(100,170,255,.65)');
     E.earthSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:eTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xaad8ff,opacity:.95}));
     E.earthSprite.position.copy(E.earthPos);E.scene.add(E.earthSprite);
@@ -1442,14 +1449,31 @@ const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 
 /* ---------- controls ---------- */
 function bindControls(){
-  const E=EXP,cv=$('#gl');let drag=false,px=0,py=0,pinch=0;
-  cv.addEventListener('pointerdown',e=>{if(E.phase!=='explore')return;drag=true;px=e.clientX;py=e.clientY;cv.setPointerCapture(e.pointerId);});
-  cv.addEventListener('pointerup',()=>drag=false);
+  const E=EXP,cv=$('#gl');let drag=false,pan=false,px=0,py=0,pinch=0;
+  const panRight=new THREE.Vector3(),panUp=new THREE.Vector3();
+  cv.addEventListener('pointerdown',e=>{
+    if(E.phase!=='explore')return;
+    if(e.button===1){e.preventDefault();pan=true;}
+    else if(e.button===0)drag=true;
+    px=e.clientX;py=e.clientY;cv.setPointerCapture(e.pointerId);
+  });
+  /* stop the browser's middle-click autoscroll inside the explorer */
+  cv.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
+  cv.addEventListener('pointerup',()=>{drag=false;pan=false;});
   cv.addEventListener('pointermove',e=>{
     E.mouse.x=(e.clientX/innerWidth)*2-1;E.mouse.y=-(e.clientY/innerHeight)*2+1;
     E.tipXY=[e.clientX,e.clientY];
-    if(!drag||E.phase!=='explore')return;
+    if((!drag&&!pan)||E.phase!=='explore')return;
     const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;
+    if(pan){
+      /* middle-mouse pan: slide the orbit target in the camera plane, scaled by zoom */
+      const k=E.sph.r*0.0011;
+      panRight.setFromMatrixColumn(E.camera.matrixWorld,0);
+      panUp.setFromMatrixColumn(E.camera.matrixWorld,1);
+      E.target.addScaledVector(panRight,-dx*k).addScaledVector(panUp,dy*k);
+      if(E.target.length()>340)E.target.setLength(340);
+      return;
+    }
     E.vel.t=-dx*0.0042;E.vel.p=-dy*0.0036;
     E.sph.theta+=E.vel.t;E.sph.phi+=E.vel.p;
   });
@@ -1576,13 +1600,11 @@ $('#claimBtn').addEventListener('click',()=>{
     requestAnimationFrame(anim);
   })();
   state.reservedStar=s;state.reserveEnds=Date.now()+15*60*1000;
-  state.cart=1;updateCart();
   setTimeout(()=>{
     closeExplorer();
-    toast(`Star <b>${s.info.id}</b> in <b>${CONSTELLATIONS[s.info.ci][0]}</b> is reserved for 15 minutes`);
+    toast(`Star <b>${s.info.id}</b> in <b>${CONSTELLATIONS[s.info.ci][0]}</b> is reserved for 15 minutes — now choose a package`);
     applyReservation();
-    document.getElementById('personalise').scrollIntoView({behavior:reduceMotion?'auto':'smooth'});
-    setTimeout(()=>$('#f-star').focus({preventScroll:true}),900);
+    document.getElementById('packages').scrollIntoView({behavior:reduceMotion?'auto':'smooth'});
   },900);
 });
 function applyReservation(){
@@ -1741,13 +1763,30 @@ function updateCart(){
   const b=$('#cartBadge');
   b.textContent=state.cart;b.classList.toggle('on',state.cart>0);
 }
-$('#cartBtn').addEventListener('click',openCheckout);
+$('#cartBtn').addEventListener('click',()=>{
+  if(state.cart>0){openCheckout();return;}
+  if(!state.reservedStar){toast('Your bag is empty — find a star in the galaxy to begin');openExplorer();return;}
+  toast('Personalise your certificate to add it to your bag');
+  const dest=$('#personalise').classList.contains('unlocked')?'personalise':'packages';
+  document.getElementById(dest).scrollIntoView({behavior:reduceMotion?'auto':'smooth'});
+});
+/* packages require a claimed star first; choosing one unlocks personalisation */
 $$('[data-buy]').forEach(b=>b.addEventListener('click',()=>{
-  state.pkg=b.dataset.buy;state.cart=1;updateCart();
+  if(!state.reservedStar){
+    toast('First, discover the star you’d like to name');
+    openExplorer();
+    return;
+  }
+  state.pkg=b.dataset.buy;
   document.querySelector(`input[name=pkg][value=${state.pkg}]`).checked=true;
-  openCheckout();
+  $('#personalise').classList.add('unlocked');
+  document.getElementById('personalise').scrollIntoView({behavior:reduceMotion?'auto':'smooth'});
+  setTimeout(()=>$('#f-star').focus({preventScroll:true}),700);
 }));
-$('#persContinue').addEventListener('click',()=>{state.cart=Math.max(1,state.cart);updateCart();openCheckout();});
+$('#persContinue').addEventListener('click',()=>{
+  state.cart=1;updateCart();
+  openCheckout();
+});
 
 function setStep(n){
   ['co-1','co-2','co-3','co-4'].forEach((id,i)=>$('#'+id).hidden=i!==n-1);
