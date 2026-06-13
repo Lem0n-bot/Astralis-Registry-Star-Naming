@@ -1354,7 +1354,7 @@ function buildGalaxy(){
     const pts=new THREE.Points(g,m);E.scene.add(pts);return pts;
   }
   E.groups.available=makePoints(buckets.available,texSoft,2.1,true);
-  E.groups.reserved=makePoints(buckets.reserved,texGold,2.5,false);
+  E.groups.reserved=makePoints(buckets.reserved,texGold,1.8,false);
   E.groups.featured=makePoints(buckets.featured,texFeat,7.5,false);
   E.indexMaps={available:buckets.available,reserved:buckets.reserved,featured:buckets.featured};
 
@@ -1389,10 +1389,10 @@ function buildGalaxy(){
      base = resting opacity, amp = shimmer depth, sp = shimmer speed. */
   E.twinkleShells=[];
   const SHELLS=[
-    {M:7000,size:1.5,rIn:360,rSpan:1500,col:0xeef2ff,base:.55,amp:.30,sp:0.00020},/* dense fine field */
-    {M:4200,size:2.0,rIn:440,rSpan:1300,col:0xc8d4f4,base:.55,amp:.32,sp:0.00026},
-    {M:2800,size:2.8,rIn:560,rSpan:1100,col:0xaebfee,base:.60,amp:.34,sp:0.00017},
-    {M:1500,size:4.0,rIn:700,rSpan:950, col:0xffffff,base:.70,amp:.30,sp:0.00031},/* a few bright ones */
+    {M:11000,size:1.5,rIn:360,rSpan:1500,col:0xeef2ff,base:.55,amp:.30,sp:0.00020},/* dense fine field */
+    {M:6500, size:2.0,rIn:440,rSpan:1300,col:0xc8d4f4,base:.55,amp:.32,sp:0.00026},
+    {M:4200, size:2.8,rIn:560,rSpan:1100,col:0xaebfee,base:.60,amp:.34,sp:0.00017},
+    {M:2200, size:4.0,rIn:700,rSpan:950, col:0xffffff,base:.70,amp:.30,sp:0.00031},/* a few bright ones */
   ];
   SHELLS.forEach((sh,si)=>{
     const p=new Float32Array(sh.M*3);
@@ -1404,6 +1404,38 @@ function buildGalaxy(){
     const m=new THREE.PointsMaterial({size:sh.size,map:texSoft,transparent:true,opacity:sh.base,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,color:sh.col});
     const pts=new THREE.Points(g,m);pts.userData=sh;pts.userData.phase=si*1.7;E.scene.add(pts);E.twinkleShells.push(pts);
   });
+
+  /* dark milky-way belt: a tilted great-circle band of densely clustered faint
+     stars + dust, far out in world space so you can look around it. Kept dark
+     so it reads as a distant galactic band rather than a bright wall. The whole
+     group revolves slowly in the render loop. */
+  {
+    const band=new THREE.Group();
+    E.milkyWayTilt={y:0.4};band.rotation.set(0.52,E.milkyWayTilt.y,0.28);
+    const M=8000,p=new Float32Array(M*3),col=new Float32Array(M*3);
+    const cA=new THREE.Color(0xc2cdf0),cB=new THREE.Color(0x6776a8),tc=new THREE.Color();
+    for(let i=0;i<M;i++){
+      const a=Math.random()*Math.PI*2;
+      /* gaussian-ish latitude keeps stars hugging the belt plane (thin band) */
+      const lat=((Math.random()+Math.random()+Math.random()-1.5)/1.5)*0.24;
+      const r=1500+Math.random()*760,cl=Math.cos(lat);
+      p[i*3]=Math.cos(a)*cl*r;p[i*3+1]=Math.sin(lat)*r;p[i*3+2]=Math.sin(a)*cl*r;
+      tc.copy(Math.random()<.5?cA:cB);const lum=.45+Math.random()*.5;
+      col[i*3]=tc.r*lum;col[i*3+1]=tc.g*lum;col[i*3+2]=tc.b*lum;
+    }
+    const bg=new THREE.BufferGeometry();
+    bg.setAttribute('position',new THREE.BufferAttribute(p,3));
+    bg.setAttribute('color',new THREE.BufferAttribute(col,3));
+    band.add(new THREE.Points(bg,new THREE.PointsMaterial({size:1.7,map:texSoft,vertexColors:true,transparent:true,opacity:.34,depthWrite:false,fog:false,blending:THREE.AdditiveBlending})));
+    /* faint dust glow clouds strung along the belt */
+    for(let k=0;k<7;k++){
+      const a=Math.random()*Math.PI*2,r=1500+Math.random()*640;
+      const n=new THREE.Sprite(new THREE.SpriteMaterial({map:nebulaTexture(220+Math.random()*70),transparent:true,opacity:.09,depthWrite:false,blending:THREE.AdditiveBlending,color:0x2c3760}));
+      n.position.set(Math.cos(a)*r,(Math.random()-.5)*210,Math.sin(a)*r);n.scale.set(760,760,1);
+      band.add(n);
+    }
+    E.milkyWay=band;E.scene.add(band);
+  }
 
   /* galactic core + nebulae */
   const core=new THREE.Sprite(new THREE.SpriteMaterial({map:spriteTexture('rgba(255,238,205,1)','rgba(255,200,130,.4)'),transparent:true,opacity:.95,depthWrite:false,blending:THREE.AdditiveBlending}));
@@ -1438,7 +1470,7 @@ function buildGalaxy(){
     E.earthLabel.position.copy(E.earthPos).add(new THREE.Vector3(0,11,0));
     E.scene.add(E.earthLabel);
   }
-  E.baseSizes={available:2.1,reserved:2.5,featured:7.5};
+  E.baseSizes={available:2.1,reserved:1.8,featured:7.5};
 
   /* bright marker placed on the chosen star while its profile is open, so the
      selected star reads as a solid glowing point instead of a faint dot */
@@ -1613,9 +1645,15 @@ function showDetail(info,v,gi){
   $('#d-nearby').innerHTML='Nearby stars: <b>'+near.join(' · ')+'</b>';
   $('#detail').classList.add('on');$('#detail').setAttribute('aria-hidden','false');
 }
+function clearConstellation(){
+  const E=EXP;
+  if(E.constIv){clearInterval(E.constIv);E.constIv=null;}
+  if(E.constLine){E.scene.remove(E.constLine);E.constLine.geometry.dispose();E.constLine.material.dispose();E.constLine=null;}
+  if(E.constNodes){E.constNodes.children.forEach(o=>o.material.dispose());E.scene.remove(E.constNodes);E.constNodes=null;}
+}
 function drawConstellation(center,ci){
   const E=EXP;
-  if(E.constLine){E.scene.remove(E.constLine);E.constLine.geometry.dispose();}
+  clearConstellation();
   const pts=[center.clone()];let cur=center.clone();
   for(let k=0;k<5;k++){
     cur=cur.clone().add(new THREE.Vector3((h1(ci*9+k,31)-.5)*26,(h1(ci*9+k,32)-.5)*12,(h1(ci*9+k,33)-.5)*26));
@@ -1623,14 +1661,27 @@ function drawConstellation(center,ci){
   }
   const g=new THREE.BufferGeometry().setFromPoints(pts);
   g.setDrawRange(0,1);
-  E.constLine=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xd9b96c,transparent:true,opacity:.75,blending:THREE.AdditiveBlending}));
+  E.constLine=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xe7c878,transparent:true,opacity:.8,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}));
   E.scene.add(E.constLine);
-  let n=1;const iv=setInterval(()=>{n++;g.setDrawRange(0,n);if(n>=pts.length)clearInterval(iv);},260);
+  /* a glowing star at each vertex so the chosen star reads as linked to its
+     neighbours; each node lights up as the connecting line reaches it */
+  E.constNodes=new THREE.Group();
+  const nodeTex=spriteTexture('rgba(255,247,220,1)','rgba(217,185,108,.7)');
+  pts.forEach((pt,i)=>{
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:nodeTex,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,color:0xffe9b0}));
+    s.position.copy(pt);const sz=i===0?0:3.4;s.scale.set(sz,sz,1); /* node 0 is the chosen star (lit by its own marker) */
+    E.constNodes.add(s);
+  });
+  E.scene.add(E.constNodes);
+  let n=1;E.constIv=setInterval(()=>{n++;g.setDrawRange(0,n);
+    const node=E.constNodes&&E.constNodes.children[n-1];
+    if(node)node.material.opacity=.95;
+    if(n>=pts.length)clearInterval(E.constIv);},260);
 }
 function closeDetail(backOut=true){
   const E=EXP;
   $('#detail').classList.remove('on');$('#detail').setAttribute('aria-hidden','true');
-  if(E.constLine){E.scene.remove(E.constLine);E.constLine=null;}
+  clearConstellation();
   if(E.selMarker){E.selMarker.visible=false;E.selMarker.material.opacity=0;}
   if(E.selHalo){E.selHalo.visible=false;E.selHalo.material.opacity=0;}
   if(backOut){E.phase='travel';startTween(new THREE.Vector3(0,0,0),340,1800,()=>{E.phase='explore';$('#expHint').style.opacity=1;});}
@@ -1785,12 +1836,12 @@ function spawnMeteor(){
   E.scene.add(line);
   E.meteors.push({line,mat,pos:start,dir,speed,tail,t0:performance.now(),dur:9000+Math.random()*6000});
 }
-function updateMeteors(now){
+function updateMeteors(now,dt){
   const E=EXP;
   for(let i=E.meteors.length-1;i>=0;i--){
     const m=E.meteors[i],k=(now-m.t0)/m.dur;
     if(k>=1){E.scene.remove(m.line);m.line.geometry.dispose();m.mat.dispose();E.meteors.splice(i,1);continue;}
-    m.pos.addScaledVector(m.dir,m.speed);
+    m.pos.addScaledVector(m.dir,m.speed*dt);
     const arr=m.line.geometry.attributes.position.array;
     for(let j=0;j<=METEOR_SEG;j++){
       const d=m.tail*(j/METEOR_SEG);
@@ -1809,6 +1860,11 @@ function loop(){
   const E=EXP;
   E.raf=requestAnimationFrame(loop);
   const now=performance.now();
+  /* delta-time factor (1 == a 60fps frame). All per-frame motion is scaled by
+     this so speed stays constant and smooth regardless of the actual frame
+     rate; clamped so a long stall (tab switch) can't produce one giant jump. */
+  const dt=E.lastNow?Math.min(3,(now-E.lastNow)/16.667):1;
+  E.lastNow=now;
 
   if(E.phase==='warp'){
     const k=(now-E.warpT0)/2600;
@@ -1840,11 +1896,12 @@ function loop(){
     if(k>=1){const after=tw.after;E.tween=null;after&&after();}
   }
   /* inertia in both free-look phases; a gentle auto-drift only while exploring.
-     Orbit (viewing a chosen star) never auto-rotates — the user rotates it. */
+     Orbit (viewing a chosen star) never auto-rotates — the user rotates it.
+     All increments scale by dt so motion is smooth at any frame rate. */
   if(E.phase==='explore'||E.phase==='orbit'){
-    E.sph.theta+=E.vel.t;E.sph.phi+=E.vel.p;
-    E.vel.t*=.94;E.vel.p*=.94;
-    if(E.phase==='explore')E.sph.theta+=0.00035;
+    E.sph.theta+=E.vel.t*dt;E.sph.phi+=E.vel.p*dt;
+    const decay=Math.pow(.94,dt);E.vel.t*=decay;E.vel.p*=decay;
+    if(E.phase==='explore')E.sph.theta+=0.00035*dt;
   }
   camFromSph();
 
@@ -1878,18 +1935,25 @@ function loop(){
     const pulse=1+Math.sin(now*0.005)*.16;
     const sc=THREE.MathUtils.clamp(z*0.16,2.2,7)*pulse;
     E.selMarker.scale.set(sc,sc,1);
-    E.selMarker.material.opacity=Math.min(.97,E.selMarker.material.opacity+0.05);
+    E.selMarker.material.opacity=Math.min(.97,E.selMarker.material.opacity+0.05*dt);
     E.selHalo.scale.set(sc*2.8,sc*2.8,1);
-    E.selHalo.material.opacity=Math.min(.55,E.selHalo.material.opacity+0.03)*(.7+.3*Math.sin(now*0.004));
+    E.selHalo.material.opacity=Math.min(.55,E.selHalo.material.opacity+0.03*dt)*(.7+.3*Math.sin(now*0.004));
   }
+  /* constellation node stars gently pulse so the links feel alive */
+  if(E.constNodes){const ps=3.4*(1+Math.sin(now*0.005)*.13);
+    E.constNodes.children.forEach((nd,idx)=>{if(idx>0)nd.scale.set(ps,ps,1);});}
 
-  /* distant tiny stars shimmer slowly (slower than the hero's twinkle) */
-  if(E.twinkleShells)E.twinkleShells.forEach(sh=>{const d=sh.userData;
-    sh.material.opacity=d.base+d.amp*(.5+.5*Math.sin(now*d.sp+d.phase));});
+  /* distant stars shimmer slowly and the whole field revolves gently around
+     the galaxy — both time-based, so inherently smooth */
+  if(E.twinkleShells)E.twinkleShells.forEach((sh,i)=>{const d=sh.userData;
+    sh.material.opacity=d.base+d.amp*(.5+.5*Math.sin(now*d.sp+d.phase));
+    sh.rotation.y=now*0.0000075*(1+i*0.35);
+    sh.rotation.x=now*0.0000028*(1+i*0.2);});
+  if(E.milkyWay){E.milkyWay.rotation.y=E.milkyWayTilt.y+now*0.0000052;}
 
   /* occasional shooting stars crossing the galaxy */
   if(now>=E.nextMeteor){spawnMeteor();E.nextMeteor=now+5000+Math.random()*9000;}
-  updateMeteors(now);
+  updateMeteors(now,dt);
 
   if(E.phase==='explore')doHover();
   E.renderer.render(E.scene,E.camera);
