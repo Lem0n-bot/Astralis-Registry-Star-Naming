@@ -403,6 +403,48 @@ footer a:hover{color:var(--gold)}
 @keyframes pulseGlow{0%,100%{box-shadow:0 0 30px rgba(217,185,108,.3)}50%{box-shadow:0 0 60px rgba(217,185,108,.6)}}
 .success .big svg{width:36px;height:36px;color:var(--gold-bright)}
 
+/* ---- form validation state ---- */
+.field.invalid input,.field.invalid select,.field.invalid textarea{border-color:#e0607a;box-shadow:0 0 0 3px rgba(224,96,122,.14)}
+.field .field-err{display:none;color:#e88aa0;font-size:.72rem;margin-top:.4rem}
+.field.invalid .field-err{display:block}
+
+/* ---- certificate confirmation popup ---- */
+.cc-cert-stage{display:flex;justify-content:center;margin:1.4rem 0 .4rem;perspective:1400px}
+.cc-cert-stage .cert{width:min(300px,72vw)}
+.cc-note{display:flex;gap:.6rem;align-items:flex-start;font-size:.8rem;color:var(--mute);background:rgba(217,185,108,.07);border:1px solid var(--line);border-radius:12px;padding:.75rem 1rem;margin:.2rem 0 1.3rem}
+.cc-note svg{width:16px;height:16px;color:var(--gold);flex:none;margin-top:.1rem}
+.cc-actions{display:grid;grid-template-columns:1fr 1.2fr;gap:.8rem}
+@media(max-width:520px){.cc-actions{grid-template-columns:1fr}}
+
+/* ---- shopping cart drawer ---- */
+.bag-modal{position:fixed;inset:0;z-index:320;display:none}
+.bag-modal.on{display:block}
+.bag-modal .veil{position:absolute;inset:0;background:rgba(2,3,10,.78);backdrop-filter:blur(8px)}
+.bag-panel{position:absolute;top:0;right:0;height:100%;width:min(460px,100%);background:linear-gradient(180deg,#10142E,#0A0D20);border-left:1px solid var(--glass-brd);box-shadow:-30px 0 90px rgba(0,0,0,.6);display:flex;flex-direction:column;animation:bagin .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes bagin{from{transform:translateX(40px);opacity:0}}
+.bag-head{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 1.6rem 1rem;border-bottom:1px solid rgba(255,255,255,.07)}
+.bag-head h3{font-size:1.5rem}
+.bag-head .close{width:36px;height:36px;border-radius:50%;border:1px solid var(--glass-brd);display:grid;place-items:center;color:var(--mute)}
+.bag-head .close:hover{color:var(--star);border-color:var(--gold)}
+.bag-body{flex:1;overflow-y:auto;padding:1.4rem 1.6rem}
+.bag-foot{padding:1.2rem 1.6rem 1.6rem;border-top:1px solid rgba(255,255,255,.07)}
+.bag-item{display:flex;gap:1.1rem}
+.bag-thumb{flex:none;width:128px;perspective:900px}
+.bag-thumb .cert{width:128px}
+.bag-info{flex:1;min-width:0}
+.bag-eyebrow{font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.bag-info h4{font-family:var(--display);font-size:1.35rem;line-height:1.1;margin:.25rem 0 .35rem;word-break:break-word}
+.bag-msg{font-size:.82rem;color:var(--mute);font-style:italic;margin-bottom:.7rem;word-break:break-word}
+.bag-dl{display:grid;gap:.32rem}
+.bag-dl>div{display:flex;justify-content:space-between;gap:.8rem;font-size:.78rem;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:.32rem}
+.bag-dl dt{color:var(--mute)}
+.bag-dl dd{color:var(--star);text-align:right;word-break:break-word}
+.bag-total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:1rem;font-size:.9rem;color:var(--mute)}
+.bag-total span:last-child{font-family:var(--display);font-size:1.5rem;color:var(--gold-bright)}
+.bag-empty{text-align:center;color:var(--mute);padding:3rem 1rem;font-size:1rem}
+.bag-empty span{font-size:.82rem}
+@media(max-width:640px){.bag-item{flex-direction:column}.bag-thumb,.bag-thumb .cert{width:160px;margin:0 auto}}
+
 @media(max-width:900px){
   .hero-in{grid-template-columns:1fr;gap:3rem}
   .cert{width:min(360px,86vw)}
@@ -430,8 +472,8 @@ footer a:hover{color:var(--gold)}
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-cta">
-      <button class="cart-btn" id="cartBtn" aria-label="Cart">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 7h12l-1.2 11.2a2 2 0 0 1-2 1.8H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+      <button class="cart-btn" id="cartBtn" aria-label="Shopping cart">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.8h2.3l2.1 10.7a1.4 1.4 0 0 0 1.4 1.1h7.9a1.4 1.4 0 0 0 1.4-1.1L20.5 7H6"/></svg>
         <span class="cart-badge" id="cartBadge">1</span>
       </button>
       <button class="btn btn-gold btn-sm nav-book" data-launch>Name a Star</button>
@@ -554,8 +596,8 @@ footer a:hover{color:var(--gold)}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D9B96C" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
           <div>Star <b id="rb-id">AST-000000</b> is reserved for you · <b id="rb-timer">15:00</b></div>
         </div>
-        <div class="field"><label for="f-star">Star name</label><input id="f-star" type="text" maxlength="28" placeholder="e.g. Amelia Rose" autocomplete="off"></div>
-        <div class="field"><label for="f-recip">Recipient name</label><input id="f-recip" type="text" maxlength="40" placeholder="Who is this gift for?" autocomplete="off"></div>
+        <div class="field"><label for="f-star">Star name</label><input id="f-star" type="text" maxlength="28" placeholder="e.g. Amelia Rose" autocomplete="off"><span class="field-err">Please enter a star name.</span></div>
+        <div class="field"><label for="f-recip">Recipient name</label><input id="f-recip" type="text" maxlength="40" placeholder="Who is this gift for?" autocomplete="off"><span class="field-err">Please enter a recipient name.</span></div>
         <div class="field"><label for="f-occ">Occasion</label>
           <select id="f-occ">
             <option>Just because</option><option>Birthday</option><option>Anniversary</option><option>Wedding</option><option>Valentine's Day</option><option>Mother's Day</option><option>Father's Day</option><option>New baby</option><option>Memorial tribute</option>
@@ -567,7 +609,7 @@ footer a:hover{color:var(--gold)}
             <button type="button" class="cs-btn" data-ctheme="ivory"><i class="cs-sw ivo"></i>Ivory</button>
           </div>
         </div>
-        <div class="field"><label for="f-msg">Custom message</label><textarea id="f-msg" maxlength="120" placeholder="A few words they'll keep forever..."></textarea></div>
+        <div class="field"><label for="f-msg">Custom message</label><textarea id="f-msg" maxlength="120" placeholder="A few words they'll keep forever..."></textarea><span class="field-err">Please enter a message.</span></div>
         <button class="btn btn-gold" id="persContinue">Add to Bag · Checkout</button>
       </div>
       <div class="cert-stage fx d2">
@@ -865,6 +907,38 @@ footer a:hover{color:var(--gold)}
   </div>
 </div>
 
+<!-- ============ CERTIFICATE CONFIRMATION ============ -->
+<div class="modal" id="certConfirm" role="dialog" aria-label="Confirm your certificate">
+  <div class="veil" data-closecert></div>
+  <div class="sheet">
+    <button class="close" data-closecert aria-label="Close">✕</button>
+    <span class="eyebrow">Check every word</span>
+    <h3 class="serif" style="font-size:1.7rem;margin-top:.3rem">Is everything perfect?</h3>
+    <div class="cc-cert-stage"><div class="cert" id="confirmCert" aria-label="Certificate preview"></div></div>
+    <div class="cc-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16.4" r=".4" fill="currentColor"/></svg>
+      <span>Please review the name, message and details carefully. Once production begins, personalised details can no longer be changed.</span>
+    </div>
+    <div class="cc-actions">
+      <button class="btn btn-ghost" id="cc-back">Go Back &amp; Edit</button>
+      <button class="btn btn-gold" id="cc-confirm">Confirm &amp; Add to Bag</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SHOPPING CART DRAWER ============ -->
+<div class="bag-modal" id="bag" role="dialog" aria-label="Shopping cart">
+  <div class="veil" data-closebag></div>
+  <aside class="bag-panel">
+    <div class="bag-head">
+      <h3 class="serif">Your Cart</h3>
+      <button class="close" data-closebag aria-label="Close cart">✕</button>
+    </div>
+    <div class="bag-body" id="bagBody"></div>
+    <div class="bag-foot" id="bagFoot"></div>
+  </aside>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
@@ -873,7 +947,7 @@ footer a:hover{color:var(--gold)}
    ================================================================= */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const state={cart:0,selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',prices:{standard:39,premium:79,ultimate:139}};
+const state={cart:0,selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',bagItem:null,prices:{standard:39,premium:79,ultimate:139}};
 
 /* ---------- nav scroll ---------- */
 const nav=$('#nav');
@@ -1809,7 +1883,9 @@ $('#expClose').addEventListener('click',()=>closeExplorer());
 $$('[data-launch]').forEach(b=>b.addEventListener('click',openExplorer));
 addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
-  if($('#checkout').classList.contains('on'))closeCheckout();
+  if($('#certConfirm').classList.contains('on'))closeCertConfirm();
+  else if($('#bag').classList.contains('on'))closeBag();
+  else if($('#checkout').classList.contains('on'))closeCheckout();
   else if($('#subpage').classList.contains('on'))closeSubpage();
   else if($('#detail').classList.contains('on'))closeDetail();
   else if($('#explorer').classList.contains('open'))closeExplorer();
@@ -2014,9 +2090,9 @@ function updateCart(){
   b.textContent=state.cart;b.classList.toggle('on',state.cart>0);
 }
 $('#cartBtn').addEventListener('click',()=>{
-  if(state.cart>0){openCheckout();return;}
-  if(!state.reservedStar){toast('Your bag is empty — find a star in the galaxy to begin');openExplorer();return;}
-  toast('Personalise your certificate to add it to your bag');
+  if(state.cart>0){openBag();return;}
+  if(!state.reservedStar){toast('Your cart is empty — find a star in the galaxy to begin');openExplorer();return;}
+  toast('Personalise your certificate to add it to your cart');
   const dest=$('#personalise').classList.contains('unlocked')?'personalise':'packages';
   document.getElementById(dest).scrollIntoView({behavior:reduceMotion?'auto':'smooth'});
 });
@@ -2033,10 +2109,96 @@ $$('[data-buy]').forEach(b=>b.addEventListener('click',()=>{
   document.getElementById('personalise').scrollIntoView({behavior:reduceMotion?'auto':'smooth'});
   setTimeout(()=>$('#f-star').focus({preventScroll:true}),700);
 }));
-$('#persContinue').addEventListener('click',()=>{
+/* ---------- personalise validation + certificate confirmation ---------- */
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const REQUIRED=['f-star','f-recip','f-msg'];
+REQUIRED.forEach(id=>$('#'+id).addEventListener('input',()=>$('#'+id).closest('.field').classList.remove('invalid')));
+function validatePersonalise(){
+  let ok=true,firstBad=null;
+  REQUIRED.forEach(id=>{
+    const el=$('#'+id),empty=!el.value.trim();
+    el.closest('.field').classList.toggle('invalid',empty);
+    if(empty&&!firstBad)firstBad=el;
+    if(empty)ok=false;
+  });
+  if(!ok){toast('Please fill in every field before adding to your cart.');if(firstBad)firstBad.focus({preventScroll:true});}
+  return ok;
+}
+/* build certificate data from the current form + reserved star */
+function currentCertData(){
+  const s=state.reservedStar,inf=s?s.info:null;
+  return {
+    name:$('#f-star').value.trim()||'—',
+    msg:$('#f-msg').value.trim()||'',
+    recip:$('#f-recip').value.trim()||'—',
+    occ:$('#f-occ').value,
+    ra:inf?inf.ra:'—',dec:inf?inf.dec:'—',
+    cons:inf?CONSTELLATIONS[inf.ci][0]:'—',
+    mag:inf?inf.mag:'—',sec:inf?inf.sec:'—',cls:inf?inf.spec:'—',
+    id:inf?inf.id:'—',seed:s?(s.gi%89):5,theme:state.certTheme,pkg:state.pkg
+  };
+}
+function openCertConfirm(){
+  const d=currentCertData();
+  renderCert($('#confirmCert'),d);
+  $('#confirmCert').classList.toggle('ivory',d.theme==='ivory');
+  $('#certConfirm').classList.add('on');document.body.style.overflow='hidden';
+}
+function closeCertConfirm(){$('#certConfirm').classList.remove('on');document.body.style.overflow='';}
+$$('[data-closecert]').forEach(b=>b.addEventListener('click',closeCertConfirm));
+$('#cc-back').addEventListener('click',closeCertConfirm);
+$('#cc-confirm').addEventListener('click',()=>{
+  state.bagItem=currentCertData();
   state.cart=1;updateCart();
-  openCheckout();
+  closeCertConfirm();
+  openBag();
 });
+/* "Add to Bag" → validate, then show the certificate confirmation popup */
+$('#persContinue').addEventListener('click',()=>{
+  if(!validatePersonalise())return;
+  openCertConfirm();
+});
+
+/* ---------- shopping cart drawer ---------- */
+function openBag(){renderBag();$('#bag').classList.add('on');document.body.style.overflow='hidden';}
+function closeBag(){$('#bag').classList.remove('on');document.body.style.overflow='';}
+$$('[data-closebag]').forEach(b=>b.addEventListener('click',closeBag));
+function renderBag(){
+  const body=$('#bagBody'),foot=$('#bagFoot');
+  if(!state.cart||!state.bagItem){
+    body.innerHTML='<div class="bag-empty">Your cart is empty.<br><span>Discover a star in the galaxy to begin.</span></div>';
+    foot.innerHTML='<button class="btn btn-gold" id="bag-explore" style="width:100%">Explore the Galaxy</button>';
+    $('#bag-explore').addEventListener('click',()=>{closeBag();openExplorer();});
+    return;
+  }
+  const it=state.bagItem,pkgNames={standard:'Standard',premium:'Premium',ultimate:'Ultimate Gift'};
+  const price=state.prices[it.pkg].toFixed(2);
+  body.innerHTML=
+    '<div class="bag-item">'
+    +'<div class="bag-thumb"><div class="cert'+(it.theme==='ivory'?' ivory':'')+'" id="bagCert"></div></div>'
+    +'<div class="bag-info">'
+    +'<span class="bag-eyebrow">Star naming · '+pkgNames[it.pkg]+'</span>'
+    +'<h4>'+esc(it.name)+'</h4>'
+    +(it.msg?'<p class="bag-msg">“'+esc(it.msg)+'”</p>':'')
+    +'<dl class="bag-dl">'
+    +'<div><dt>Registry ID</dt><dd>'+it.id+'</dd></div>'
+    +'<div><dt>Recipient</dt><dd>'+esc(it.recip)+'</dd></div>'
+    +'<div><dt>Occasion</dt><dd>'+esc(it.occ)+'</dd></div>'
+    +'<div><dt>Constellation</dt><dd>'+it.cons+'</dd></div>'
+    +'<div><dt>Right ascension</dt><dd>'+it.ra+'</dd></div>'
+    +'<div><dt>Declination</dt><dd>'+it.dec+'</dd></div>'
+    +'<div><dt>Apparent magnitude</dt><dd>'+it.mag+'</dd></div>'
+    +'<div><dt>Star class</dt><dd>'+it.cls+'</dd></div>'
+    +'<div><dt>Finish</dt><dd>'+(it.theme==='ivory'?'Ivory':'Midnight')+'</dd></div>'
+    +'</dl></div></div>';
+  renderCert($('#bagCert'),it);
+  foot.innerHTML=
+    '<div class="bag-total"><span>Total ('+pkgNames[it.pkg]+')</span><span>$'+price+' AUD</span></div>'
+    +'<button class="btn btn-gold" id="bag-checkout" style="width:100%">Proceed to Checkout</button>'
+    +'<button class="btn btn-ghost btn-sm" id="bag-remove" style="width:100%;margin-top:.6rem">Remove from cart</button>';
+  $('#bag-checkout').addEventListener('click',()=>{closeBag();openCheckout();});
+  $('#bag-remove').addEventListener('click',()=>{state.cart=0;state.bagItem=null;updateCart();renderBag();});
+}
 
 function setStep(n){
   ['co-1','co-2','co-3','co-4'].forEach((id,i)=>$('#'+id).hidden=i!==n-1);
@@ -2070,7 +2232,7 @@ $('#co-next2').addEventListener('click',()=>{
 $('#co-back2').addEventListener('click',()=>setStep(2));
 $$('[data-pay]').forEach(b=>b.addEventListener('click',()=>{
   $('#ordNo').textContent='AST-ORD-'+(10000+Math.random()*89999|0);
-  state.cart=0;updateCart();
+  state.cart=0;state.bagItem=null;updateCart();
   setStep(4);
 }));
 
