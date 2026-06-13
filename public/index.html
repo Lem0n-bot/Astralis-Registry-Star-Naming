@@ -1305,7 +1305,8 @@ function starInfo(i,pos){
 const EXP={inited:false,renderer:null,scene:null,camera:null,raf:null,phase:'idle',
   groups:{},indexMaps:{},positions:null,target:new THREE.Vector3(0,0,0),
   sph:{r:340,theta:0.6,phi:1.15},vel:{t:0,p:0},tween:null,hover:-1,
-  constLine:null,detailLayer:null,labels:[],audio:null,meteors:[],nextMeteor:Infinity};
+  constLine:null,detailLayer:null,labels:[],audio:null,meteors:[],nextMeteor:Infinity,
+  blackHole:null,nextBlackHole:Infinity,nextShower:Infinity};
 
 function spriteTexture(inner,outer){
   const c=document.createElement('canvas');c.width=c.height=64;
@@ -1618,6 +1619,8 @@ function buildGalaxy(){
   E.warpScene.add(E.warpLines);
 
   E.nextMeteor=performance.now()+6000;
+  E.nextShower=performance.now()+26000+Math.random()*20000;     /* first meteor shower */
+  E.nextBlackHole=performance.now()+34000+Math.random()*26000;  /* first black hole */
 
   E.raycaster=new THREE.Raycaster();
   E.mouse=new THREE.Vector2(-2,-2);
@@ -1939,11 +1942,21 @@ $('#soundBtn').addEventListener('click',()=>setAmbience(!(EXP.audio&&EXP.audio.o
 /* Scene-space meteors: real objects in the galaxy, so panning, rotating
    and zooming the camera moves them like everything else. */
 const METEOR_SEG=12; /* segments along the tail; more = smoother fade */
-function spawnMeteor(){
+/* opts (all optional): start (THREE.Vector3 origin), dir (unit travel vector),
+   delay (ms before it appears — used to stagger a shower) */
+function spawnMeteor(opts){
+  opts=opts||{};
   const E=EXP;
-  const start=rndDir().multiplyScalar(360+Math.random()*160);
-  const aim=new THREE.Vector3((Math.random()-.5)*260,(Math.random()-.5)*100,(Math.random()-.5)*260);
-  const dir=aim.sub(start).normalize();
+  const start=opts.start?opts.start.clone():rndDir().multiplyScalar(360+Math.random()*160);
+  let dir;
+  if(opts.dir){ /* shared shower direction, lightly jittered so streaks aren't identical */
+    dir=opts.dir.clone();
+    dir.x+=(Math.random()-.5)*.1;dir.y+=(Math.random()-.5)*.1;dir.z+=(Math.random()-.5)*.1;
+    dir.normalize();
+  }else{
+    const aim=new THREE.Vector3((Math.random()-.5)*260,(Math.random()-.5)*100,(Math.random()-.5)*260);
+    dir=aim.sub(start).normalize();
+  }
   const speed=0.55+Math.random()*0.4;          /* world units / frame — a slow drift */
   const tail=26+Math.random()*16;              /* tail length in world units */
   const N=METEOR_SEG+1;
@@ -1960,12 +1973,30 @@ function spawnMeteor(){
   const mat=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending});
   const line=new THREE.Line(g,mat);
   E.scene.add(line);
-  E.meteors.push({line,mat,pos:start,dir,speed,tail,t0:performance.now(),dur:9000+Math.random()*6000});
+  E.meteors.push({line,mat,pos:start,dir,speed,tail,t0:performance.now()+(opts.delay||0),dur:9000+Math.random()*6000});
+}
+/* a meteor shower: many streaks raining from one radiant, staggered over a few
+   seconds, all travelling roughly parallel across the sky */
+function spawnMeteorShower(){
+  const radiant=rndDir();
+  const tmp=Math.abs(radiant.y)<0.9?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0);
+  const e1=new THREE.Vector3().crossVectors(radiant,tmp).normalize();
+  const e2=new THREE.Vector3().crossVectors(radiant,e1).normalize();
+  /* travel inward from the radiant, swept sideways so they streak across */
+  const dir=radiant.clone().multiplyScalar(-1).addScaledVector(e1,0.7).normalize();
+  const count=10+Math.floor(Math.random()*8);
+  for(let i=0;i<count;i++){
+    const start=radiant.clone().multiplyScalar(420+Math.random()*200)
+      .addScaledVector(e1,(Math.random()-.5)*320)
+      .addScaledVector(e2,(Math.random()-.5)*320);
+    spawnMeteor({start,dir,delay:i*(80+Math.random()*120)});
+  }
 }
 function updateMeteors(now,dt){
   const E=EXP;
   for(let i=E.meteors.length-1;i>=0;i--){
     const m=E.meteors[i],k=(now-m.t0)/m.dur;
+    if(k<0){m.mat.opacity=0;continue;}          /* still delayed (shower stagger) */
     if(k>=1){E.scene.remove(m.line);m.line.geometry.dispose();m.mat.dispose();E.meteors.splice(i,1);continue;}
     m.pos.addScaledVector(m.dir,m.speed*dt);
     const arr=m.line.geometry.attributes.position.array;
@@ -1979,6 +2010,67 @@ function updateMeteors(now,dt){
     /* fade in fast, fade out toward the end of the pass */
     m.mat.opacity=Math.min(1,k*8)*(1-k)*.9;
   }
+}
+
+/* ---------- 3D black hole (occasional, far in the background) ---------- */
+function blackHoleDiskTexture(){
+  const S=512,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  /* glowing accretion ring with a transparent hole in the middle */
+  const g=x.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(0.30,'rgba(0,0,0,0)');
+  g.addColorStop(0.40,'rgba(255,170,80,0)');
+  g.addColorStop(0.47,'rgba(255,224,170,0.95)');  /* hot inner edge */
+  g.addColorStop(0.58,'rgba(255,150,70,0.55)');
+  g.addColorStop(0.78,'rgba(170,90,210,0.16)');   /* cooler violet outer */
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.fillRect(0,0,S,S);
+  /* angular hot specks so the disk visibly swirls as it spins */
+  for(let i=0;i<160;i++){
+    const a=Math.random()*Math.PI*2,r=(0.42+Math.random()*0.34)*S/2;
+    x.fillStyle='rgba(255,'+(200+(Math.random()*55|0))+','+(140+(Math.random()*90|0))+','+(0.05+Math.random()*0.14).toFixed(2)+')';
+    x.beginPath();x.arc(S/2+Math.cos(a)*r,S/2+Math.sin(a)*r,1+Math.random()*2.6,0,7);x.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+function spawnBlackHole(){
+  const E=EXP;if(E.blackHole)return;
+  const grp=new THREE.Group();
+  const pos=rndDir().multiplyScalar(900+Math.random()*520);
+  grp.position.copy(pos);
+  grp.lookAt(0,0,0);
+  grp.rotateX(0.8+Math.random()*0.6);            /* tilt the disk for a 3D look */
+  grp.rotateZ(Math.random()*Math.PI);
+  const R=64+Math.random()*46;
+  /* accretion disk: a tilted glowing plane with a hole in the centre */
+  const disk=new THREE.Mesh(new THREE.PlaneGeometry(R*3.1,R*3.1),
+    new THREE.MeshBasicMaterial({map:blackHoleDiskTexture(),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false}));
+  grp.add(disk);
+  /* event horizon: a truly black sphere that occludes the stars behind it */
+  const horizon=new THREE.Mesh(new THREE.SphereGeometry(1,24,18),
+    new THREE.MeshBasicMaterial({color:0x000000,fog:false}));
+  horizon.scale.setScalar(0.001);grp.add(horizon);
+  /* soft photon glow that always faces the camera */
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:spriteTexture('rgba(255,224,180,.55)','rgba(255,150,90,.12)'),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));
+  halo.scale.set(R*1.7,R*1.7,1);grp.add(halo);
+  E.scene.add(grp);
+  E.blackHole={grp,disk,horizon,halo,R,t0:performance.now(),dur:16000+Math.random()*9000};
+}
+function updateBlackHole(now,dt){
+  const E=EXP,bh=E.blackHole;if(!bh)return;
+  const k=(now-bh.t0)/bh.dur;
+  if(k>=1){
+    E.scene.remove(bh.grp);
+    bh.disk.geometry.dispose();bh.disk.material.map.dispose();bh.disk.material.dispose();
+    bh.horizon.geometry.dispose();bh.horizon.material.dispose();
+    bh.halo.material.map.dispose();bh.halo.material.dispose();
+    E.blackHole=null;return;
+  }
+  const env=Math.sin(Math.min(1,Math.max(0,k))*Math.PI);   /* 0 -> 1 -> 0 */
+  bh.disk.material.opacity=0.92*env;
+  bh.halo.material.opacity=0.5*env;
+  bh.horizon.scale.setScalar(Math.max(0.001,bh.R*0.52*Math.min(1,env*1.5)));
+  bh.disk.rotation.z+=0.006*dt;                              /* swirl */
 }
 
 /* ---------- render loop ---------- */
@@ -2082,7 +2174,12 @@ function loop(){
 
   /* occasional shooting stars crossing the galaxy */
   if(now>=E.nextMeteor){spawnMeteor();E.nextMeteor=now+5000+Math.random()*9000;}
+  /* occasional meteor shower — a burst of streaks raining across the sky */
+  if(now>=E.nextShower){spawnMeteorShower();E.nextShower=now+34000+Math.random()*40000;}
   updateMeteors(now,dt);
+  /* occasional black hole drifting far in the background */
+  if(!E.blackHole&&now>=E.nextBlackHole){spawnBlackHole();E.nextBlackHole=now+48000+Math.random()*44000;}
+  updateBlackHole(now,dt);
 
   if(E.phase==='explore')doHover();
   E.renderer.render(E.scene,E.camera);
