@@ -4,3 +4,8 @@ out/
 .vercel
 .env*
 .DS_Store
+
+# local debug / screenshot artifacts (not part of the site)
+probe*.html
+probe*.txt
+*-test.png
