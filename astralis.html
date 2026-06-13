@@ -1285,6 +1285,55 @@ function spaceBackdrop(){
   x.fillStyle=x.createPattern(nt,'repeat');x.fillRect(0,0,S,S);
   return new THREE.CanvasTexture(c);
 }
+/* High-detail equirectangular milky-way sky, painted onto a wide canvas and
+   wrapped on the inside of a big sphere (see buildGalaxy). The bright galactic
+   band runs across the middle; tens of thousands of stars cluster into it, with
+   nebula colour and dark dust lanes carved back out, so the backdrop reads as a
+   populated HD milky way you can look around — not a flat image on the screen. */
+function milkyWaySkyTexture(){
+  const W=4096,H=2048,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  const grad=x.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#01010a');grad.addColorStop(.5,'#05061a');grad.addColorStop(1,'#01010a');
+  x.fillStyle=grad;x.fillRect(0,0,W,H);
+  const bandY=H*0.5,bandH=H*0.24,inBand=y=>Math.exp(-Math.pow((y-bandY)/bandH,2));
+  /* soft luminous core down the band */
+  const cg=x.createLinearGradient(0,bandY-bandH,0,bandY+bandH);
+  cg.addColorStop(0,'rgba(150,162,214,0)');cg.addColorStop(.5,'rgba(176,184,228,.07)');cg.addColorStop(1,'rgba(150,162,214,0)');
+  x.fillStyle=cg;x.fillRect(0,bandY-bandH,W,bandH*2);
+  /* nebula colour wash hugging the band */
+  const hues=[225,210,258,290,40,200];
+  for(let i=0;i<130;i++){
+    const bx=Math.random()*W,yy=bandY+(Math.random()-.5)*bandH*2.4,r=120+Math.random()*430,h=hues[i%hues.length];
+    const a=(0.014+Math.random()*0.03)*inBand(yy);
+    const g=x.createRadialGradient(bx,yy,0,bx,yy,r);
+    g.addColorStop(0,`hsla(${h},65%,56%,${a})`);g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+  }
+  /* dense star field — strongly concentrated toward the galactic band */
+  for(let i=0;i<42000;i++){
+    const px=Math.random()*W,py=Math.random()*H,pb=inBand(py);
+    if(Math.random()>0.16+0.84*pb)continue;
+    const br=Math.random(),a=(0.22+0.6*pb)*(0.3+0.7*br),sz=br>0.985?1.4+Math.random()*1.4:(Math.random()<.9?0.7:1.2);
+    x.fillStyle='rgba(255,255,255,'+a.toFixed(3)+')';x.fillRect(px,py,sz,sz);
+  }
+  /* a scatter of bright glowing stars in the band */
+  for(let i=0;i<300;i++){
+    const px=Math.random()*W,py=bandY+(Math.random()-.5)*bandH*1.9,r=1.3+Math.random()*2.4;
+    const g=x.createRadialGradient(px,py,0,px,py,r*4);
+    g.addColorStop(0,'rgba(255,255,255,.85)');g.addColorStop(.4,'rgba(210,220,255,.3)');g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g;x.beginPath();x.arc(px,py,r*4,0,7);x.fill();
+  }
+  /* dark dust lanes threading through the band */
+  x.globalCompositeOperation='destination-out';
+  for(let i=0;i<80;i++){
+    const px=Math.random()*W,py=bandY+(Math.random()-.5)*bandH*1.3,r=40+Math.random()*190;
+    const g=x.createRadialGradient(px,py,0,px,py,r);
+    g.addColorStop(0,'rgba(0,0,0,'+(0.3+Math.random()*0.45).toFixed(2)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,7);x.fill();
+  }
+  x.globalCompositeOperation='source-over';
+  return new THREE.CanvasTexture(c);
+}
 function labelSprite(text,color){
   const c=document.createElement('canvas');c.width=512;c.height=96;const x=c.getContext('2d');
   x.font='600 46px Cormorant Garamond, Georgia, serif';x.textAlign='center';x.textBaseline='middle';
@@ -1339,7 +1388,7 @@ function buildGalaxy(){
     buckets[starInfo(i,v).status].push(i);
   }
   const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(190,205,255,.55)');
-  const texGold=spriteTexture('rgba(255,240,200,1)','rgba(217,185,108,.6)');
+  const texGold=spriteTexture('rgba(255,240,200,1)','rgba(217,185,108,.55)');
   const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(242,220,162,.85)');
   function makePoints(idx,tex,size,useColor){
     const g=new THREE.BufferGeometry();
@@ -1354,7 +1403,7 @@ function buildGalaxy(){
     const pts=new THREE.Points(g,m);E.scene.add(pts);return pts;
   }
   E.groups.available=makePoints(buckets.available,texSoft,2.1,true);
-  E.groups.reserved=makePoints(buckets.reserved,texGold,1.8,false);
+  E.groups.reserved=makePoints(buckets.reserved,texGold,2.1,false); /* same size as normal stars */
   E.groups.featured=makePoints(buckets.featured,texFeat,7.5,false);
   E.indexMaps={available:buckets.available,reserved:buckets.reserved,featured:buckets.featured};
 
@@ -1405,36 +1454,15 @@ function buildGalaxy(){
     const pts=new THREE.Points(g,m);pts.userData=sh;pts.userData.phase=si*1.7;E.scene.add(pts);E.twinkleShells.push(pts);
   });
 
-  /* dark milky-way belt: a tilted great-circle band of densely clustered faint
-     stars + dust, far out in world space so you can look around it. Kept dark
-     so it reads as a distant galactic band rather than a bright wall. The whole
-     group revolves slowly in the render loop. */
+  /* HD milky-way skydome: the painted galactic band wrapped on the inside of a
+     huge sphere, so it surrounds the scene and you look around it as you orbit.
+     renderOrder -1 + no depth write keeps it behind every star. */
   {
-    const band=new THREE.Group();
-    E.milkyWayTilt={y:0.4};band.rotation.set(0.52,E.milkyWayTilt.y,0.28);
-    const M=8000,p=new Float32Array(M*3),col=new Float32Array(M*3);
-    const cA=new THREE.Color(0xc2cdf0),cB=new THREE.Color(0x6776a8),tc=new THREE.Color();
-    for(let i=0;i<M;i++){
-      const a=Math.random()*Math.PI*2;
-      /* gaussian-ish latitude keeps stars hugging the belt plane (thin band) */
-      const lat=((Math.random()+Math.random()+Math.random()-1.5)/1.5)*0.24;
-      const r=1500+Math.random()*760,cl=Math.cos(lat);
-      p[i*3]=Math.cos(a)*cl*r;p[i*3+1]=Math.sin(lat)*r;p[i*3+2]=Math.sin(a)*cl*r;
-      tc.copy(Math.random()<.5?cA:cB);const lum=.45+Math.random()*.5;
-      col[i*3]=tc.r*lum;col[i*3+1]=tc.g*lum;col[i*3+2]=tc.b*lum;
-    }
-    const bg=new THREE.BufferGeometry();
-    bg.setAttribute('position',new THREE.BufferAttribute(p,3));
-    bg.setAttribute('color',new THREE.BufferAttribute(col,3));
-    band.add(new THREE.Points(bg,new THREE.PointsMaterial({size:1.7,map:texSoft,vertexColors:true,transparent:true,opacity:.34,depthWrite:false,fog:false,blending:THREE.AdditiveBlending})));
-    /* faint dust glow clouds strung along the belt */
-    for(let k=0;k<7;k++){
-      const a=Math.random()*Math.PI*2,r=1500+Math.random()*640;
-      const n=new THREE.Sprite(new THREE.SpriteMaterial({map:nebulaTexture(220+Math.random()*70),transparent:true,opacity:.09,depthWrite:false,blending:THREE.AdditiveBlending,color:0x2c3760}));
-      n.position.set(Math.cos(a)*r,(Math.random()-.5)*210,Math.sin(a)*r);n.scale.set(760,760,1);
-      band.add(n);
-    }
-    E.milkyWay=band;E.scene.add(band);
+    const sky=new THREE.Mesh(
+      new THREE.SphereGeometry(2800,48,32),
+      new THREE.MeshBasicMaterial({map:milkyWaySkyTexture(),side:THREE.BackSide,depthWrite:false,fog:false}));
+    sky.rotation.set(0.5,0.4,0.22);sky.renderOrder=-1;
+    E.sky=sky;E.skyRot=0.4;E.scene.add(sky);
   }
 
   /* galactic core + nebulae */
@@ -1456,21 +1484,26 @@ function buildGalaxy(){
   /* --- Earth marker: our Sun's place on the Orion Spur --- */
   {
     E.earthPos=EARTH_POS.clone();           /* sits on one of the spiral arms */
-    const eTex=spriteTexture('rgba(200,235,255,1)','rgba(100,170,255,.65)');
-    E.earthSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:eTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xaad8ff,opacity:.95}));
+    /* soft halo glow */
+    const eTex=spriteTexture('rgba(200,235,255,1)','rgba(100,170,255,.55)');
+    E.earthSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:eTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xaad8ff,opacity:.9}));
     E.earthSprite.position.copy(E.earthPos);E.scene.add(E.earthSprite);
+    /* crisp bright core so Earth reads as a precise pinpoint, not a blob */
+    const eCore=spriteTexture('rgba(255,255,255,1)','rgba(190,225,255,.9)');
+    E.earthCore=new THREE.Sprite(new THREE.SpriteMaterial({map:eCore,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xeaf6ff,opacity:1}));
+    E.earthCore.position.copy(E.earthPos);E.scene.add(E.earthCore);
     /* pulsing locator ring in the galactic plane */
     const seg=72,pts=[];
     for(let i=0;i<=seg;i++){const a2=i/seg*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a2),0,Math.sin(a2)));}
     E.earthRing=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({color:0x7fc4ff,transparent:true,opacity:.7,blending:THREE.AdditiveBlending}));
     E.earthRing.position.copy(E.earthPos);E.scene.add(E.earthRing);
-    E.earthLabel=labelSprite('Earth · You are here','rgba(170,216,255,.95)');
-    E.earthLabel.material.opacity=.95;
+    E.earthLabel=labelSprite('EARTH','rgba(184,224,255,.98)');
+    E.earthLabel.material.opacity=.98;
     E.earthLabel.position.copy(E.earthPos).add(new THREE.Vector3(0,11,0));
     E.scene.add(E.earthLabel);
   }
-  E.baseSizes={available:2.1,reserved:1.8,featured:7.5};
+  E.baseSizes={available:2.1,reserved:2.1,featured:7.5}; /* reserved matches normal stars */
 
   /* bright marker placed on the chosen star while its profile is open, so the
      selected star reads as a solid glowing point instead of a faint dot */
@@ -1664,11 +1697,14 @@ function drawConstellation(center,ci){
   E.constLine=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xe7c878,transparent:true,opacity:.8,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}));
   E.scene.add(E.constLine);
   /* a glowing star at each vertex so the chosen star reads as linked to its
-     neighbours; each node lights up as the connecting line reaches it */
+     neighbours; each node lights up as the connecting line reaches it. The
+     chosen star (node 0) stays gold; the connected neighbours each get a random
+     colour so the constellation looks like a cluster of varied stars. */
   E.constNodes=new THREE.Group();
-  const nodeTex=spriteTexture('rgba(255,247,220,1)','rgba(217,185,108,.7)');
+  const nodeTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.7)');
   pts.forEach((pt,i)=>{
-    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:nodeTex,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,color:0xffe9b0}));
+    const tint=new THREE.Color().setHSL(h1(ci*9+i,41),0.7,0.62); /* deterministic-random hue per neighbour */
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:nodeTex,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,color:i===0?0xffe9b0:tint}));
     s.position.copy(pt);const sz=i===0?0:3.4;s.scale.set(sz,sz,1); /* node 0 is the chosen star (lit by its own marker) */
     E.constNodes.add(s);
   });
@@ -1921,14 +1957,17 @@ function loop(){
   /* Earth marker keeps a readable, gently pulsing presence at every zoom */
   if(E.earthSprite){
     const pulse=1+Math.sin(now*0.004)*.18;
-    const es=Math.max(3.4,z*0.022)*pulse;
+    /* keep a roughly constant on-screen size so Earth stays a tidy pinpoint */
+    const es=Math.max(2.6,z*0.018)*pulse;
     E.earthSprite.scale.set(es,es,1);
-    const rs=(Math.max(4,z*0.03))*(1+Math.sin(now*0.003)*.22);
+    const cs=Math.max(1.1,z*0.0075)*pulse;   /* sharp core, ~a third of the halo */
+    E.earthCore.scale.set(cs,cs,1);
+    const rs=Math.max(3.2,z*0.024)*(1+Math.sin(now*0.003)*.16);
     E.earthRing.scale.set(rs,rs,rs);
-    E.earthRing.material.opacity=.35+.35*Math.abs(Math.sin(now*0.003));
-    const ls=Math.max(18,Math.min(70,z*0.17));
+    E.earthRing.material.opacity=.4+.35*Math.abs(Math.sin(now*0.003));
+    const ls=Math.max(16,Math.min(54,z*0.13));
     E.earthLabel.scale.set(ls,ls*0.1875,1);
-    E.earthLabel.position.set(E.earthPos.x,E.earthPos.y+Math.max(5,z*0.035),E.earthPos.z);
+    E.earthLabel.position.set(E.earthPos.x,E.earthPos.y+Math.max(4.5,z*0.03),E.earthPos.z);
   }
   /* selected-star marker: solid glowing point + halo, gently pulsing */
   if(E.selMarker&&E.selMarker.visible){
@@ -1949,7 +1988,7 @@ function loop(){
     sh.material.opacity=d.base+d.amp*(.5+.5*Math.sin(now*d.sp+d.phase));
     sh.rotation.y=now*0.0000075*(1+i*0.35);
     sh.rotation.x=now*0.0000028*(1+i*0.2);});
-  if(E.milkyWay){E.milkyWay.rotation.y=E.milkyWayTilt.y+now*0.0000052;}
+  if(E.sky)E.sky.rotation.y=E.skyRot+now*0.0000040;
 
   /* occasional shooting stars crossing the galaxy */
   if(now>=E.nextMeteor){spawnMeteor();E.nextMeteor=now+5000+Math.random()*9000;}
