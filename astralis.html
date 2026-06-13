@@ -1292,11 +1292,16 @@ function spaceBackdrop(){
    populated HD milky way you can look around — not a flat image on the screen. */
 function milkyWaySkyTexture(){
   const W=4096,H=2048,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  /* Every feature is drawn through wrapX(): if it sits within `r` of the left
+     or right edge, a copy is drawn on the opposite edge too. That makes the
+     whole texture horizontally periodic, so the equirectangular wrap point on
+     the skydome sphere has no visible seam. */
+  const wrapX=(cx,r,draw)=>{draw(cx);if(cx-r<0)draw(cx+W);if(cx+r>W)draw(cx-W);};
   const grad=x.createLinearGradient(0,0,0,H);
   grad.addColorStop(0,'#000005');grad.addColorStop(.5,'#020310');grad.addColorStop(1,'#000005');
   x.fillStyle=grad;x.fillRect(0,0,W,H);
   const bandY=H*0.5,bandH=H*0.24,inBand=y=>Math.exp(-Math.pow((y-bandY)/bandH,2));
-  /* soft luminous core down the band (kept dim) */
+  /* soft luminous core down the band (kept dim) — full width, already seamless */
   const cg=x.createLinearGradient(0,bandY-bandH,0,bandY+bandH);
   cg.addColorStop(0,'rgba(150,162,214,0)');cg.addColorStop(.5,'rgba(170,178,224,.04)');cg.addColorStop(1,'rgba(150,162,214,0)');
   x.fillStyle=cg;x.fillRect(0,bandY-bandH,W,bandH*2);
@@ -1305,34 +1310,37 @@ function milkyWaySkyTexture(){
   for(let i=0;i<130;i++){
     const bx=Math.random()*W,yy=bandY+(Math.random()-.5)*bandH*2.4,r=120+Math.random()*430,h=hues[i%hues.length];
     const a=(0.009+Math.random()*0.02)*inBand(yy);
-    const g=x.createRadialGradient(bx,yy,0,bx,yy,r);
-    g.addColorStop(0,`hsla(${h},65%,52%,${a})`);g.addColorStop(1,'rgba(0,0,0,0)');
-    x.fillStyle=g;x.fillRect(0,0,W,H);
+    wrapX(bx,r,cx=>{const g=x.createRadialGradient(cx,yy,0,cx,yy,r);
+      g.addColorStop(0,`hsla(${h},65%,52%,${a})`);g.addColorStop(1,'rgba(0,0,0,0)');
+      x.fillStyle=g;x.fillRect(0,0,W,H);});
   }
   /* dense star field — strongly concentrated toward the galactic band */
   for(let i=0;i<42000;i++){
     const px=Math.random()*W,py=Math.random()*H,pb=inBand(py);
     if(Math.random()>0.16+0.84*pb)continue;
     const br=Math.random(),a=(0.16+0.5*pb)*(0.3+0.7*br),sz=br>0.99?1.2+Math.random()*1.0:(Math.random()<.92?0.7:1.1);
-    x.fillStyle='rgba(255,255,255,'+a.toFixed(3)+')';x.fillRect(px,py,sz,sz);
+    x.fillStyle='rgba(255,255,255,'+a.toFixed(3)+')';
+    wrapX(px,sz,cx=>x.fillRect(cx,py,sz,sz));
   }
   /* a scatter of faint glowing stars in the band (kept small — no big dots) */
   for(let i=0;i<200;i++){
-    const px=Math.random()*W,py=bandY+(Math.random()-.5)*bandH*1.9,r=0.7+Math.random()*1.1;
-    const g=x.createRadialGradient(px,py,0,px,py,r*3);
-    g.addColorStop(0,'rgba(255,255,255,.6)');g.addColorStop(.4,'rgba(210,220,255,.22)');g.addColorStop(1,'rgba(0,0,0,0)');
-    x.fillStyle=g;x.beginPath();x.arc(px,py,r*3,0,7);x.fill();
+    const px=Math.random()*W,py=bandY+(Math.random()-.5)*bandH*1.9,r=0.7+Math.random()*1.1,rr=r*3;
+    wrapX(px,rr,cx=>{const g=x.createRadialGradient(cx,py,0,cx,py,rr);
+      g.addColorStop(0,'rgba(255,255,255,.6)');g.addColorStop(.4,'rgba(210,220,255,.22)');g.addColorStop(1,'rgba(0,0,0,0)');
+      x.fillStyle=g;x.beginPath();x.arc(cx,py,rr,0,7);x.fill();});
   }
   /* dark dust lanes threading through the band */
   x.globalCompositeOperation='destination-out';
   for(let i=0;i<80;i++){
-    const px=Math.random()*W,py=bandY+(Math.random()-.5)*bandH*1.3,r=40+Math.random()*190;
-    const g=x.createRadialGradient(px,py,0,px,py,r);
-    g.addColorStop(0,'rgba(0,0,0,'+(0.3+Math.random()*0.45).toFixed(2)+')');g.addColorStop(1,'rgba(0,0,0,0)');
-    x.fillStyle=g;x.beginPath();x.arc(px,py,r,0,7);x.fill();
+    const px=Math.random()*W,py=bandY+(Math.random()-.5)*bandH*1.3,r=40+Math.random()*190,da=(0.3+Math.random()*0.45).toFixed(2);
+    wrapX(px,r,cx=>{const g=x.createRadialGradient(cx,py,0,cx,py,r);
+      g.addColorStop(0,'rgba(0,0,0,'+da+')');g.addColorStop(1,'rgba(0,0,0,0)');
+      x.fillStyle=g;x.beginPath();x.arc(cx,py,r,0,7);x.fill();});
   }
   x.globalCompositeOperation='source-over';
-  return new THREE.CanvasTexture(c);
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=THREE.RepeatWrapping;            /* sample seamlessly across the wrap */
+  return t;
 }
 function labelSprite(text,color){
   const c=document.createElement('canvas');c.width=512;c.height=96;const x=c.getContext('2d');
@@ -1403,8 +1411,8 @@ function buildGalaxy(){
     const pts=new THREE.Points(g,m);E.scene.add(pts);return pts;
   }
   E.groups.available=makePoints(buckets.available,texSoft,2.1,true);
-  E.groups.reserved=makePoints(buckets.reserved,texGold,2.1,false); /* same size as normal stars */
-  E.groups.featured=makePoints(buckets.featured,texFeat,7.5,false);
+  E.groups.reserved=makePoints(buckets.reserved,texGold,1.7,false); /* gold reserved, kept small */
+  E.groups.featured=makePoints(buckets.featured,texFeat,3.4,false); /* premium, only slightly larger */
   E.indexMaps={available:buckets.available,reserved:buckets.reserved,featured:buckets.featured};
 
   /* detail layer: faint extra stars revealed when zoomed in */
@@ -1503,7 +1511,7 @@ function buildGalaxy(){
     E.earthLabel.position.copy(E.earthPos).add(new THREE.Vector3(0,11,0));
     E.scene.add(E.earthLabel);
   }
-  E.baseSizes={available:2.1,reserved:2.1,featured:7.5}; /* reserved matches normal stars */
+  E.baseSizes={available:2.1,reserved:1.7,featured:3.4};
 
   /* bright marker placed on the chosen star while its profile is open, so the
      selected star reads as a solid glowing point instead of a faint dot */
@@ -1705,7 +1713,7 @@ function drawConstellation(center,ci){
   pts.forEach((pt,i)=>{
     const tint=new THREE.Color().setHSL(h1(ci*9+i,41),0.7,0.62); /* deterministic-random hue per neighbour */
     const s=new THREE.Sprite(new THREE.SpriteMaterial({map:nodeTex,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,color:i===0?0xffe9b0:tint}));
-    s.position.copy(pt);const sz=i===0?0:2.27;s.scale.set(sz,sz,1); /* node 0 is the chosen star (lit by its own marker) */
+    s.position.copy(pt);const sz=i===0?0:1.4;s.scale.set(sz,sz,1); /* node 0 is the chosen star (lit by its own marker) */
     E.constNodes.add(s);
   });
   E.scene.add(E.constNodes);
@@ -1979,7 +1987,7 @@ function loop(){
     E.selHalo.material.opacity=Math.min(.55,E.selHalo.material.opacity+0.03*dt)*(.7+.3*Math.sin(now*0.004));
   }
   /* constellation node stars gently pulse so the links feel alive */
-  if(E.constNodes){const ps=2.27*(1+Math.sin(now*0.005)*.13);
+  if(E.constNodes){const ps=1.4*(1+Math.sin(now*0.005)*.13);
     E.constNodes.children.forEach((nd,idx)=>{if(idx>0)nd.scale.set(ps,ps,1);});}
 
   /* distant stars shimmer slowly and the whole field revolves gently around
