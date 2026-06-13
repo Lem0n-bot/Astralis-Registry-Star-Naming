@@ -1990,5 +1990,5 @@ $('#subpage').addEventListener('click',e=>{
   }
 });
 </script>
-</body>
+<script>setTimeout(()=>{function probe(id){const cv=document.getElementById(id);if(!cv)return id+':missing';try{const cx=cv.getContext('2d');const w=cv.width,h=cv.height;if(!w||!h)return id+':zero-size('+w+'x'+h+')';const d=cx.getImageData(0,0,w,Math.min(h,400)).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i]>10)n++;return id+':'+w+'x'+h+':lit='+n;}catch(e){return id+':err:'+e.message}}const el=document.createElement('div');el.id='probeResult';el.textContent=probe('starfield')+' / '+probe('finalStarfield')+' / reduceMotion='+matchMedia('(prefers-reduced-motion: reduce)').matches;document.body.appendChild(el);},3000);</script></body>
 </html>
