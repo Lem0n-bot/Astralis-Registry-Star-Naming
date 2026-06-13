@@ -403,6 +403,19 @@ footer a:hover{color:var(--gold)}
 @keyframes pulseGlow{0%,100%{box-shadow:0 0 30px rgba(217,185,108,.3)}50%{box-shadow:0 0 60px rgba(217,185,108,.6)}}
 .success .big svg{width:36px;height:36px;color:var(--gold-bright)}
 
+/* ---- email verification (checkout step 2) ---- */
+.ev-row{display:flex;gap:.6rem;align-items:stretch}
+.ev-row input{flex:1;min-width:0}
+.ev-row .btn{flex:none;white-space:nowrap;padding-left:1rem;padding-right:1rem}
+.ev-code-row{position:relative;display:flex;align-items:center}
+.ev-code-row input{flex:1;letter-spacing:.35em;font-family:var(--display)}
+.ev-check{position:absolute;right:.95rem;color:#9ff0b9;font-size:1.15rem;opacity:0;transform:scale(.6);transition:opacity .3s,transform .3s;pointer-events:none}
+.ev-check.on{opacity:1;transform:scale(1)}
+.ev-status{font-size:.74rem;color:var(--mute);margin-top:.45rem;min-height:1.1em;transition:color .3s}
+.ev-status.ok{color:#9ff0b9}
+.ev-status.err{color:#f29494}
+.btn[disabled],.btn[aria-disabled="true"]{opacity:.45;pointer-events:none;cursor:default}
+
 /* ---- form validation state ---- */
 .field.invalid input,.field.invalid select,.field.invalid textarea{border-color:#e0607a;box-shadow:0 0 0 3px rgba(224,96,122,.14)}
 .field .field-err{display:none;color:#e88aa0;font-size:.72rem;margin-top:.4rem}
@@ -614,8 +627,6 @@ footer a:hover{color:var(--gold)}
           </div>
         </div>
         <div class="field"><label for="f-msg">Custom message</label><textarea id="f-msg" maxlength="120" placeholder="A few words they'll keep forever..."></textarea><span class="field-err">Please enter a message.</span></div>
-        <div class="field"><label for="f-email">Email for certificate delivery</label><input id="f-email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email"><span class="field-err">Please enter a valid email address.</span></div>
-        <div class="field"><label for="f-email2">Confirm email</label><input id="f-email2" type="email" inputmode="email" placeholder="Re-enter your email" autocomplete="email"><span class="field-err">Please confirm your email.</span></div>
         <button class="btn btn-gold" id="persContinue">Add to Cart</button>
       </div>
       <div class="cert-stage fx d2">
@@ -869,11 +880,23 @@ footer a:hover{color:var(--gold)}
         <div><span>Named</span><span id="cs-name">—</span></div>
         <div><span>Constellation</span><span id="cs-const">—</span></div>
       </div>
-      <div class="row2">
-        <div class="field"><label for="co-fn">Your name</label><input id="co-fn" type="text" autocomplete="name"></div>
-        <div class="field"><label for="co-em">Email for delivery</label><input id="co-em" type="email" autocomplete="email"></div>
+      <div class="field"><label for="co-fn">Your name</label><input id="co-fn" type="text" autocomplete="name"></div>
+      <div class="field">
+        <label for="co-em">Email for delivery</label>
+        <div class="ev-row">
+          <input id="co-em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+          <button type="button" class="btn btn-ghost btn-sm" id="ev-send" disabled aria-busy="false">Send code</button>
+        </div>
       </div>
-      <button class="btn btn-gold" style="width:100%" id="co-next2">Continue to Payment</button>
+      <div class="field">
+        <label for="co-code">Security code</label>
+        <div class="ev-code-row">
+          <input id="co-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" disabled>
+          <span class="ev-check" id="ev-check" aria-hidden="true">✓</span>
+        </div>
+        <div class="ev-status" id="ev-status" role="status" aria-live="polite"></div>
+      </div>
+      <button class="btn btn-gold" style="width:100%" id="co-next2" disabled aria-disabled="true">Continue to Payment</button>
       <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:.7rem" id="co-back1">Back</button>
     </div>
 
@@ -953,7 +976,7 @@ footer a:hover{color:var(--gold)}
    ================================================================= */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const state={selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',bag:[],prices:{standard:39,premium:79,ultimate:139}};
+const state={selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',bag:[],emailVerified:false,prices:{standard:39,premium:79,ultimate:139}};
 
 /* ---------- nav scroll ---------- */
 const nav=$('#nav');
@@ -2043,9 +2066,9 @@ function photonRingTexture(){
   g.addColorStop(0,'rgba(0,0,0,0)');
   g.addColorStop(0.33,'rgba(190,212,255,0)');
   g.addColorStop(0.42,'rgba(226,238,255,0.95)');
-  g.addColorStop(0.50,'rgba(255,255,255,1)');     /* bold, bright lensing ring */
-  g.addColorStop(0.58,'rgba(226,238,255,0.95)');
-  g.addColorStop(0.74,'rgba(160,192,255,0.32)');  /* lensed glow bleeding outward */
+  g.addColorStop(0.50,'rgba(255,255,255,1)');     /* thin lensing ring */
+  g.addColorStop(0.57,'rgba(226,238,255,0.85)');
+  g.addColorStop(0.68,'rgba(160,192,255,0.12)');  /* slight lensed glow, kept tight */
   g.addColorStop(1,'rgba(0,0,0,0)');
   x.fillStyle=g;x.fillRect(0,0,S,S);
   return new THREE.CanvasTexture(c);
@@ -2069,12 +2092,19 @@ function buildBlackHole(){
     new THREE.MeshBasicMaterial({color:0x000000,fog:false}));
   grp.add(horizon);
   /* photon ring: light bent right around the hole — faces the camera so the
-     lensing signature reads correctly from any angle */
+     lensing signature reads correctly from any angle. Its bright band (at
+     ~scale/4 in world units) must sit just OUTSIDE the horizon radius (R*0.5)
+     so the ring always encircles the dark core instead of being swallowed and
+     depth-occluded by the event-horizon sphere when viewed from the side. */
   const ring=new THREE.Sprite(new THREE.SpriteMaterial({map:photonRingTexture(),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:false,color:0xeaf1ff}));
-  ring.scale.set(R*1.55,R*1.55,1);grp.add(ring);
+  /* scale so the thin band sits just outside the horizon (R*0.5) — a tight rim
+     that covers the core from every angle without sprawling across the disk.
+     renderOrder keeps it (and the halo) behind the accretion disk. */
+  ring.scale.set(R*2.05,R*2.05,1);ring.renderOrder=-1;grp.add(ring);
   /* soft warm glow that always faces the camera */
   const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:spriteTexture('rgba(255,228,188,.6)','rgba(255,150,90,.14)'),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));
-  halo.scale.set(R*1.9,R*1.9,1);grp.add(halo);
+  halo.scale.set(R*1.9,R*1.9,1);halo.renderOrder=-2;grp.add(halo);
+  disk.renderOrder=1;                       /* accretion disk renders on top of the ring */
   E.scene.add(grp);
   E.blackHole={grp,disk,horizon,ring,halo,R,bornT:performance.now()};
 }
@@ -2082,7 +2112,7 @@ function updateBlackHole(now,dt){
   const bh=EXP.blackHole;if(!bh)return;
   const fade=THREE.MathUtils.clamp((now-bh.bornT)/2000,0,1);  /* one gentle fade-in, then stays */
   bh.disk.material.opacity=0.98*fade;
-  bh.ring.material.opacity=fade*(0.9+0.1*Math.sin(now*0.0016)); /* brilliant lensing ring */
+  bh.ring.material.opacity=fade*(0.42+0.08*Math.sin(now*0.0016)); /* subtle lensing rim */
   bh.halo.material.opacity=(0.5*fade)*(0.85+0.15*Math.sin(now*0.0012));
   bh.disk.rotation.z+=0.003*dt;                               /* perpetual swirl, half speed */
 }
@@ -2228,9 +2258,9 @@ $$('[data-buy]').forEach(b=>b.addEventListener('click',()=>{
 }));
 /* ---------- personalise validation + certificate confirmation ---------- */
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-const REQUIRED=['f-star','f-recip','f-msg','f-email','f-email2'];
+/* email is collected and verified later at checkout (step 2), not here */
+const REQUIRED=['f-star','f-recip','f-msg'];
 REQUIRED.forEach(id=>$('#'+id).addEventListener('input',()=>$('#'+id).closest('.field').classList.remove('invalid')));
-const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function setFieldError(el,msg){const f=el.closest('.field');if(msg){const e=f.querySelector('.field-err');if(e)e.textContent=msg;}f.classList.add('invalid');}
 function validatePersonalise(){
   let ok=true,firstBad=null;
@@ -2239,10 +2269,7 @@ function validatePersonalise(){
   need($('#f-star'),tv('f-star'),'Please enter a star name.');
   need($('#f-recip'),tv('f-recip'),'Please enter a recipient name.');
   need($('#f-msg'),tv('f-msg'),'Please enter a message.');
-  const e1=tv('f-email'),e2=tv('f-email2');
-  need($('#f-email'),EMAIL_RE.test(e1),e1?'Please enter a valid email address.':'Please enter your email.');
-  need($('#f-email2'),!!e2&&e2===e1,!e2?'Please confirm your email.':'Emails do not match.');
-  if(!ok){toast('Please complete every field correctly before adding to your cart.');if(firstBad)firstBad.focus({preventScroll:true});}
+  if(!ok){toast('Please complete every field before adding to your cart.');if(firstBad)firstBad.focus({preventScroll:true});}
   return ok;
 }
 /* build certificate data from the current form + reserved star */
@@ -2253,7 +2280,6 @@ function currentCertData(){
     msg:$('#f-msg').value.trim()||'',
     recip:$('#f-recip').value.trim()||'—',
     occ:$('#f-occ').value,
-    email:$('#f-email').value.trim(),
     ra:inf?inf.ra:'—',dec:inf?inf.dec:'—',
     cons:inf?CONSTELLATIONS[inf.ci][0]:'—',
     mag:inf?inf.mag:'—',sec:inf?inf.sec:'—',cls:inf?inf.spec:'—',
@@ -2316,7 +2342,6 @@ function renderBag(){
     +'<div><dt>Apparent magnitude</dt><dd>'+it.mag+'</dd></div>'
     +'<div><dt>Star class</dt><dd>'+it.cls+'</dd></div>'
     +'<div><dt>Finish</dt><dd>'+(it.theme==='ivory'?'Ivory':'Midnight')+'</dd></div>'
-    +'<div><dt>Deliver to</dt><dd>'+esc(it.email)+'</dd></div>'
     +'<div><dt>Package</dt><dd>'+PKG_NAMES[it.pkg]+' · $'+state.prices[it.pkg].toFixed(2)+'</dd></div>'
     +'</dl></div></div>'
   ).join('');
@@ -2366,6 +2391,7 @@ $('#co-next1').addEventListener('click',()=>{
 /* from the details step, "Back" returns to the cart when there are items */
 $('#co-back1').addEventListener('click',()=>{if(state.bag.length){closeCheckout();openBag();}else setStep(1);});
 $('#co-next2').addEventListener('click',()=>{
+  if(!state.emailVerified)return;        /* cannot advance until the email code is verified */
   const names={standard:'Standard Package',premium:'Premium Package',ultimate:'Ultimate Gift Package'};
   const n=state.bag.length;
   const total=(n?bagTotal():state.prices[state.pkg]).toFixed(2);
@@ -2380,6 +2406,84 @@ $$('[data-pay]').forEach(b=>b.addEventListener('click',()=>{
   state.bag=[];updateCart();
   setStep(4);
 }));
+
+/* =================================================================
+   EMAIL VERIFICATION (checkout step 2) — "Send code" + 6-digit code.
+   Server-side is the source of truth (app/api/verify-email/*); the
+   emailVerified flag here is only a UX gate before Continue to Payment.
+   ================================================================= */
+(function(){
+  const emEl=$('#co-em'),sendBtn=$('#ev-send'),codeEl=$('#co-code'),
+        statusEl=$('#ev-status'),checkEl=$('#ev-check'),nextBtn=$('#co-next2');
+  const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  let cooldown=null;
+  const setStatus=(msg,kind)=>{statusEl.textContent=msg||'';statusEl.className='ev-status'+(kind?' '+kind:'');};
+  const validEmail=()=>EMAIL_RE.test(emEl.value.trim());
+  function setVerified(v){
+    state.emailVerified=v;
+    checkEl.classList.toggle('on',v);
+    nextBtn.disabled=!v;nextBtn.setAttribute('aria-disabled',String(!v));
+  }
+  /* enable Send code only when not in cooldown and the email looks valid */
+  function refreshSend(){ if(!cooldown) sendBtn.disabled=!validEmail(); }
+  function startCooldown(secs){
+    let left=secs;sendBtn.disabled=true;
+    const tick=()=>{
+      if(left<=0){clearInterval(cooldown);cooldown=null;sendBtn.textContent='Send code';refreshSend();return;}
+      sendBtn.textContent='Resend in 0:'+String(left).padStart(2,'0');left--;
+    };
+    tick();cooldown=setInterval(tick,1000);
+  }
+  function stopCooldown(){if(cooldown){clearInterval(cooldown);cooldown=null;}sendBtn.textContent='Send code';refreshSend();}
+
+  setVerified(false);refreshSend();
+
+  emEl.addEventListener('input',()=>{
+    if(state.emailVerified)setVerified(false);     /* editing email after verifying resets it */
+    refreshSend();
+  });
+
+  sendBtn.addEventListener('click',async()=>{
+    const email=emEl.value.trim();
+    if(!EMAIL_RE.test(email))return;
+    sendBtn.setAttribute('aria-busy','true');sendBtn.disabled=true;setStatus('Sending…');
+    try{
+      const r=await fetch('/api/verify-email/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+      const data=await r.json().catch(()=>({}));
+      if(r.status===429){setStatus('Please wait '+(data.retryAfter||60)+'s before requesting another code.','err');startCooldown(data.retryAfter||60);return;}
+      if(!r.ok){setStatus('Could not send a code. Please check the address and try again.','err');refreshSend();return;}
+      codeEl.disabled=false;codeEl.value='';codeEl.focus();
+      setStatus('Code sent to '+email+'. Check your inbox.');
+      startCooldown(60);
+    }catch(_){
+      setStatus('Network error. Please try again.','err');refreshSend();
+    }finally{
+      sendBtn.setAttribute('aria-busy','false');
+    }
+  });
+
+  codeEl.addEventListener('input',async()=>{
+    codeEl.value=codeEl.value.replace(/\D/g,'').slice(0,6);   /* digits only, max 6 */
+    if(codeEl.value.length!==6)return;
+    const email=emEl.value.trim(),code=codeEl.value;
+    setStatus('Verifying…');
+    try{
+      const r=await fetch('/api/verify-email/check-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code})});
+      const data=await r.json().catch(()=>({}));
+      if(data.ok){setVerified(true);setStatus('Email verified ✓','ok');codeEl.disabled=true;stopCooldown();return;}
+      if(r.status===429||data.error==='too_many_attempts'){
+        setStatus('Too many attempts. Please request a new code.','err');
+        codeEl.value='';codeEl.disabled=true;stopCooldown();return;
+      }
+      if(data.error==='expired'){setStatus('That code expired. Please request a new one.','err');codeEl.value='';return;}
+      const rem=data.attemptsRemaining;
+      setStatus('Incorrect code.'+(rem!=null?' '+rem+' attempt'+(rem===1?'':'s')+' remaining.':''),'err');
+      codeEl.value='';codeEl.focus();
+    }catch(_){
+      setStatus('Network error. Please try again.','err');
+    }
+  });
+})();
 
 /* =================================================================
    SUB-PAGES: FAQ, About, Contact, Terms, Privacy, Refunds
