@@ -14,7 +14,7 @@
 const store = globalThis.__astralisVerifyStore || (globalThis.__astralisVerifyStore = new Map());
 
 export const CODE_TTL_MS = 10 * 60 * 1000;     // 10 minutes
-export const RESEND_COOLDOWN_MS = 60 * 1000;   // 60 seconds between sends
+export const RESEND_COOLDOWN_MS = 20 * 1000;   // 20 seconds between sends
 export const MAX_ATTEMPTS = 5;                 // checks allowed per code
 
 export function normaliseEmail(email) {

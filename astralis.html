@@ -2453,11 +2453,11 @@ $$('[data-pay]').forEach(b=>b.addEventListener('click',()=>{
     try{
       const r=await fetch('/api/verify-email/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
       const data=await r.json().catch(()=>({}));
-      if(r.status===429){setStatus('Please wait '+(data.retryAfter||60)+'s before requesting another code.','err');startCooldown(data.retryAfter||60);return;}
+      if(r.status===429){setStatus('Please wait '+(data.retryAfter||20)+'s before requesting another code.','err');startCooldown(data.retryAfter||20);return;}
       if(!r.ok){setStatus('Could not send a code. Please check the address and try again.','err');refreshSend();return;}
       codeEl.disabled=false;codeEl.value='';codeEl.focus();
       setStatus('Code sent to '+email+'. Check your inbox.');
-      startCooldown(60);
+      startCooldown(20);
     }catch(_){
       setStatus('Network error. Please try again.','err');refreshSend();
     }finally{
