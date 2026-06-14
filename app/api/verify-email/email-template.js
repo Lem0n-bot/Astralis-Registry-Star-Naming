@@ -3,12 +3,16 @@
  * compatibility with Gmail / Outlook / Apple Mail (which strip <style> blocks),
  * and mobile-responsive via fluid widths.
  */
+// Absolute URL of the hosted starfield backdrop (email clients can't use
+// CSS/data-URI backgrounds reliably). Must point at the live public/ asset.
+const BG_URL = 'https://astralisregistry.com/email-bg.png';
+
 export function verificationEmailHtml(code) {
   const digits = String(code)
     .split('')
     .map(
       (d) =>
-        `<span style="display:inline-block;min-width:34px;margin:0 4px;padding:14px 0;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:38px;font-weight:600;color:#F2ECDD;border-bottom:2px solid rgba(217,185,108,0.5);">${d}</span>`
+        `<span style="display:inline-block;min-width:34px;margin:0 4px;padding:14px 0;font-family:Consolas,'Courier New',monospace;font-size:36px;font-weight:600;letter-spacing:1px;color:#F2ECDD;border-bottom:2px solid rgba(217,185,108,0.5);">${d}</span>`
     )
     .join('');
 
@@ -23,8 +27,8 @@ export function verificationEmailHtml(code) {
 <body style="margin:0;padding:0;background-color:#070917;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#070917;">
   <tr>
-    <td align="center" style="padding:32px 16px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;background:linear-gradient(180deg,#10142E,#0A0D20);border:1px solid rgba(217,185,108,0.18);border-radius:18px;overflow:hidden;">
+    <td align="center" background="${BG_URL}" style="padding:32px 16px;background-color:#070917;background-image:url('${BG_URL}');background-repeat:no-repeat;background-position:top center;background-size:cover;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;background:rgba(13,17,40,0.80);border:1px solid rgba(217,185,108,0.22);border-radius:18px;overflow:hidden;">
         <tr>
           <td align="center" style="padding:34px 28px 8px 28px;">
             <div style="font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:26px;font-weight:600;letter-spacing:2px;color:#D9B96C;">ASTRALIS</div>

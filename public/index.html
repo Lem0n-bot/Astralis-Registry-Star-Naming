@@ -411,7 +411,7 @@ footer a:hover{color:var(--gold)}
 .ev-row input{flex:1;min-width:0}
 .ev-row .btn{flex:none;white-space:nowrap;padding-left:1rem;padding-right:1rem}
 .ev-code-row{position:relative;display:flex;align-items:center}
-.ev-code-row input{flex:1;letter-spacing:.35em;font-family:var(--display)}
+.ev-code-row input{flex:1;letter-spacing:.35em;font-family:Consolas,'SFMono-Regular',Menlo,'Courier New',monospace}
 .ev-check{position:absolute;right:.95rem;color:#9ff0b9;font-size:1.15rem;opacity:0;transform:scale(.6);transition:opacity .3s,transform .3s;pointer-events:none}
 .ev-check.on{opacity:1;transform:scale(1)}
 .ev-status{font-size:.74rem;color:var(--mute);margin-top:.45rem;min-height:1.1em;transition:color .3s}
@@ -2478,7 +2478,7 @@ $$('[data-pay]').forEach(b=>b.addEventListener('click',()=>{
         setStatus('Too many attempts. Please request a new code.','err');
         codeEl.value='';codeEl.disabled=true;stopCooldown();return;
       }
-      if(data.error==='expired'){setStatus('That code expired. Please request a new one.','err');codeEl.value='';return;}
+      if(data.error==='expired'||data.error==='no_code'){setStatus('Your code expired or wasn’t found — please resend.','err');codeEl.value='';return;}
       const rem=data.attemptsRemaining;
       setStatus('Incorrect code.'+(rem!=null?' '+rem+' attempt'+(rem===1?'':'s')+' remaining.':''),'err');
       codeEl.value='';codeEl.focus();
