@@ -9,3 +9,5 @@ out/
 probe*.html
 probe*.txt
 *-test.png
+*-preview.html
+tmp-*
