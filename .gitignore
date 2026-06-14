@@ -12,3 +12,6 @@ probe*.txt
 *-preview.html
 tmp-*
 build-*.js
+
+.vercel
+.env*
