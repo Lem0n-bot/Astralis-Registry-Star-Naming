@@ -11,3 +11,4 @@ probe*.txt
 *-test.png
 *-preview.html
 tmp-*
+build-*.js

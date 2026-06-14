@@ -423,6 +423,13 @@ footer a:hover{color:var(--gold)}
 .field.invalid input,.field.invalid select,.field.invalid textarea{border-color:#e0607a;box-shadow:0 0 0 3px rgba(224,96,122,.14)}
 .field .field-err{display:none;color:#e88aa0;font-size:.72rem;margin-top:.4rem}
 .field.invalid .field-err{display:block}
+.field input[readonly]{opacity:.65;cursor:default}
+.field label .opt{text-transform:none;letter-spacing:0;font-size:.82em;color:var(--mute)}
+
+/* ---- delivery (address) step ---- */
+.co-del-note{display:flex;gap:.6rem;align-items:center;font-size:.8rem;color:var(--mute);background:rgba(217,185,108,.07);border:1px solid var(--line);border-radius:12px;padding:.7rem 1rem;margin-bottom:1.3rem}
+.co-del-note svg{width:18px;height:18px;color:var(--gold);flex:none}
+.co-del-note b{color:var(--star);font-weight:500}
 
 /* ---- certificate confirmation popup ---- */
 .cc-cert-stage{display:flex;justify-content:center;margin:1.4rem 0 .4rem;perspective:1400px}
@@ -547,7 +554,7 @@ footer a:hover{color:var(--gold)}
       <div class="step fx"><h4>Explore and claim your star</h4><p>Fly through our interactive galaxy and discover the star that feels like theirs.</p></div>
       <div class="step fx d1"><h4>Choose a package</h4><p>Pick the gift level that suits the occasion, from instant digital to framed luxury.</p></div>
       <div class="step fx d2"><h4>Personalise the certificate</h4><p>Add their name, the occasion and a message. Watch the preview update live.</p></div>
-      <div class="step fx d3"><h4>Receive your gift package</h4><p>Instant digital delivery, with printed and framed keepsakes shipped worldwide.</p></div>
+      <div class="step fx d3"><h4>Receive your gift package</h4><p>Instant digital delivery, with printed and framed keepsakes shipped Australia-wide.</p></div>
     </div>
   </div>
 </section>
@@ -649,7 +656,7 @@ footer a:hover{color:var(--gold)}
     <div class="counters fx d1">
       <div class="counter center"><div class="n" data-count="50000" data-suffix="+">0</div><div class="l">Stars named</div></div>
       <div class="counter center"><div class="n" data-count="10482">0</div><div class="l">Five-star reviews</div></div>
-      <div class="counter center"><div class="n" data-count="120" data-suffix="+">0</div><div class="l">Countries delivered</div></div>
+      <div class="counter center"><div class="n" data-count="8">0</div><div class="l">States &amp; territories</div></div>
       <div class="counter center"><div class="n" data-count="98" data-suffix="%">0</div><div class="l">Would gift again</div></div>
     </div>
     <div class="reviews">
@@ -748,7 +755,7 @@ footer a:hover{color:var(--gold)}
     </div>
     <div class="faq">
       <div class="q fx"><button aria-expanded="false">How does star naming work?<span class="pl">+</span></button><div class="a"><p>You explore our interactive galaxy, choose an unnamed star, and give it the name of your choice. We record the name, the star's catalogue ID and its coordinates permanently in the Astralis registry, then produce your personalised certificate. The naming is symbolic, a beautiful gesture rather than an official astronomical designation, and we're upfront about that on every certificate.</p></div></div>
-      <div class="q fx"><button aria-expanded="false">How quickly will the gift arrive?<span class="pl">+</span></button><div class="a"><p>Digital certificates are delivered to your inbox within minutes of ordering, perfect for last-minute gifts. Printed packages ship within 1 to 2 business days, and Ultimate orders receive priority processing. Worldwide shipping with tracking is included.</p></div></div>
+      <div class="q fx"><button aria-expanded="false">How quickly will the gift arrive?<span class="pl">+</span></button><div class="a"><p>Digital certificates are delivered to your inbox within minutes of ordering, perfect for last-minute gifts. Printed packages ship within 1 to 2 business days, and Ultimate orders receive priority processing. Tracked shipping across Australia is included.</p></div></div>
       <div class="q fx"><button aria-expanded="false">What is the registry, exactly?<span class="pl">+</span></button><div class="a"><p>The Astralis registry is our permanent database of every named star. Each entry records the star's unique ID, its right ascension and declination, the name you chose and the date of dedication. Recipients can look up their star at any time using the ID on their certificate.</p></div></div>
       <div class="q fx"><button aria-expanded="false">What's the difference between digital and physical packages?<span class="pl">+</span></button><div class="a"><p>The Standard package is fully digital: a high-resolution PDF certificate and star map delivered instantly. Premium adds a museum-quality printed certificate in a luxury presentation folder. Ultimate includes a framed certificate inside a keepsake gift box, ready to hand over.</p></div></div>
       <div class="q fx"><button aria-expanded="false">How is the gift presented?<span class="pl">+</span></button><div class="a"><p>Beautifully. Printed certificates arrive on heavyweight archival paper with gold foil detailing, wrapped in tissue inside a navy presentation folder. The Ultimate box opens to reveal the framed certificate beneath a vellum star map. No prices appear anywhere in the package.</p></div></div>
@@ -867,7 +874,7 @@ footer a:hover{color:var(--gold)}
     <button class="close" data-closeco aria-label="Close checkout">✕</button>
     <span class="eyebrow">Secure checkout</span>
     <h3 class="serif" style="font-size:1.7rem;margin-top:.3rem" id="co-title">Choose your package</h3>
-    <div class="prog"><i class="on" id="p1"></i><i id="p2"></i><i id="p3"></i></div>
+    <div class="prog"><i class="on" id="p1"></i><i id="p2"></i><i id="p3"></i><i id="p4"></i></div>
 
     <div class="co-step" id="co-1">
       <div class="pkg-pick">
@@ -900,8 +907,34 @@ footer a:hover{color:var(--gold)}
         </div>
         <div class="ev-status" id="ev-status" role="status" aria-live="polite"></div>
       </div>
-      <button class="btn btn-gold" style="width:100%" id="co-next2" disabled aria-disabled="true">Continue to Payment</button>
+      <button class="btn btn-gold" style="width:100%" id="co-next2" disabled aria-disabled="true">Continue to Delivery</button>
       <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:.7rem" id="co-back1">Back</button>
+    </div>
+
+    <div class="co-step" id="co-del" hidden>
+      <div class="co-del-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7h13v8H3z"/><path d="M16 10h3l2 3v2h-5z"/><circle cx="7" cy="17" r="1.6"/><circle cx="17.5" cy="17" r="1.6"/></svg>
+        <span>Printed keepsakes ship within <b>Australia only</b>.</span>
+      </div>
+      <div class="field"><label for="d-addr1">Address line 1</label><input id="d-addr1" type="text" autocomplete="address-line1" placeholder="Street address"><span class="field-err">Please enter your address.</span></div>
+      <div class="field"><label for="d-addr2">Address line 2 <span class="opt">(optional)</span></label><input id="d-addr2" type="text" autocomplete="address-line2" placeholder="Unit, building, etc."></div>
+      <div class="row2">
+        <div class="field"><label for="d-suburb">Suburb</label><input id="d-suburb" type="text" autocomplete="address-level3"><span class="field-err">Required.</span></div>
+        <div class="field"><label for="d-city">City</label><input id="d-city" type="text" autocomplete="address-level2"><span class="field-err">Required.</span></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="d-state">State</label>
+          <select id="d-state">
+            <option value="">Select…</option>
+            <option>NSW</option><option>VIC</option><option>QLD</option><option>WA</option><option>SA</option><option>TAS</option><option>ACT</option><option>NT</option>
+          </select><span class="field-err">Select a state.</span></div>
+        <div class="field"><label for="d-postcode">Postal code</label><input id="d-postcode" type="text" inputmode="numeric" maxlength="4" autocomplete="postal-code" placeholder="e.g. 3000"><span class="field-err">Enter a 4-digit postcode.</span></div>
+      </div>
+      <div class="field"><label for="d-phone">Phone number</label><input id="d-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="04xx xxx xxx"><span class="field-err">Please enter a phone number.</span></div>
+      <div class="field"><label for="d-country">Country</label><input id="d-country" type="text" value="Australia" readonly></div>
+      <div class="field"><label for="d-email">Email</label><input id="d-email" type="email" readonly></div>
+      <button class="btn btn-gold" style="width:100%" id="co-next3">Continue to Payment</button>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:.7rem" id="co-back-del">Back</button>
     </div>
 
     <div class="co-step" id="co-3" hidden>
@@ -980,7 +1013,7 @@ footer a:hover{color:var(--gold)}
    ================================================================= */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const state={selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',bag:[],emailVerified:false,prices:{standard:39,premium:79,ultimate:139}};
+const state={selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',bag:[],emailVerified:false,delivery:null,prices:{standard:39,premium:79,ultimate:139}};
 
 /* ---------- nav scroll ---------- */
 const nav=$('#nav');
@@ -2363,11 +2396,40 @@ function renderBag(){
   }));
 }
 
+/* steps: 1 package · 2 details/email · 3 delivery · 4 payment · 5 success */
+const CO_STEPS=['co-1','co-2','co-del','co-3','co-4'];
 function setStep(n){
-  ['co-1','co-2','co-3','co-4'].forEach((id,i)=>$('#'+id).hidden=i!==n-1);
-  $('#p1').className=n>=1?'on':'';$('#p2').className=n>=2?'on':'';$('#p3').className=n>=3?'on':'';
-  $('#co-title').textContent=['Choose your package','Your star & details','Payment','Order confirmed'][n-1];
+  CO_STEPS.forEach((id,i)=>$('#'+id).hidden=i!==n-1);
+  for(let i=1;i<=4;i++)$('#p'+i).className=n>=i?'on':'';
+  $('#co-title').textContent=['Choose your package','Your star & details','Delivery address','Payment','Order confirmed'][n-1];
 }
+/* compute the order summary shown on the payment step */
+function fillCheckoutSummary(){
+  const names={standard:'Standard Package',premium:'Premium Package',ultimate:'Ultimate Gift Package'};
+  const n=state.bag.length;
+  const total=(n?bagTotal():state.prices[state.pkg]).toFixed(2);
+  $('#sum-pkg').textContent=n>1?n+' certificates':names[(state.bag[0]||{}).pkg||state.pkg];
+  $('#sum-style').textContent=n===1?(state.bag[0].theme==='ivory'?'Ivory':'Midnight'):(n>1?'Various':(state.certTheme==='ivory'?'Ivory':'Midnight'));
+  $('#sum-price').textContent='$'+total;$('#sum-total').textContent='$'+total+' AUD';$('#paybtn-total').textContent='$'+total;
+}
+/* validate the Australian delivery address */
+const AU_STATES=['NSW','VIC','QLD','WA','SA','TAS','ACT','NT'];
+function validateDelivery(){
+  let ok=true,first=null;
+  const need=(id,cond,msg)=>{const el=$('#'+id),f=el.closest('.field');
+    if(cond){f.classList.remove('invalid');}else{const e=f.querySelector('.field-err');if(e&&msg)e.textContent=msg;f.classList.add('invalid');ok=false;if(!first)first=el;}};
+  need('d-addr1',$('#d-addr1').value.trim(),'Please enter your address.');
+  need('d-suburb',$('#d-suburb').value.trim(),'Required.');
+  need('d-city',$('#d-city').value.trim(),'Required.');
+  need('d-state',AU_STATES.includes($('#d-state').value),'Select a state.');
+  need('d-postcode',/^\d{4}$/.test($('#d-postcode').value.trim()),'Enter a 4-digit postcode.');
+  need('d-phone',$('#d-phone').value.trim(),'Please enter a phone number.');
+  if(!ok){toast('Please complete your delivery address.');if(first)first.focus({preventScroll:true});}
+  return ok;
+}
+/* digits-only postcode, and clear invalid state as fields are edited */
+$('#d-postcode').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,4);});
+['d-addr1','d-suburb','d-city','d-state','d-postcode','d-phone'].forEach(id=>$('#'+id).addEventListener('input',()=>$('#'+id).closest('.field').classList.remove('invalid')));
 function openCheckout(){
   $('#checkout').classList.add('on');document.body.style.overflow='hidden';
   const n=state.bag.length;
@@ -2395,21 +2457,30 @@ $('#co-next1').addEventListener('click',()=>{
 });
 /* from the details step, "Back" returns to the cart when there are items */
 $('#co-back1').addEventListener('click',()=>{if(state.bag.length){closeCheckout();openBag();}else setStep(1);});
+/* details (email verified) -> delivery; carry the verified email onto the form */
 $('#co-next2').addEventListener('click',()=>{
   if(!state.emailVerified)return;        /* cannot advance until the email code is verified */
-  const names={standard:'Standard Package',premium:'Premium Package',ultimate:'Ultimate Gift Package'};
-  const n=state.bag.length;
-  const total=(n?bagTotal():state.prices[state.pkg]).toFixed(2);
-  $('#sum-pkg').textContent=n>1?n+' certificates':names[(state.bag[0]||{}).pkg||state.pkg];
-  $('#sum-style').textContent=n===1?(state.bag[0].theme==='ivory'?'Ivory':'Midnight'):(n>1?'Various':(state.certTheme==='ivory'?'Ivory':'Midnight'));
-  $('#sum-price').textContent='$'+total;$('#sum-total').textContent='$'+total+' AUD';$('#paybtn-total').textContent='$'+total;
+  $('#d-email').value=$('#co-em').value.trim();
   setStep(3);
 });
-$('#co-back2').addEventListener('click',()=>setStep(2));
+$('#co-back-del').addEventListener('click',()=>setStep(2));
+/* delivery -> payment (validate the Australian address first) */
+$('#co-next3').addEventListener('click',()=>{
+  if(!validateDelivery())return;
+  state.delivery={
+    address1:$('#d-addr1').value.trim(),address2:$('#d-addr2').value.trim(),
+    suburb:$('#d-suburb').value.trim(),city:$('#d-city').value.trim(),
+    state:$('#d-state').value,postcode:$('#d-postcode').value.trim(),
+    phone:$('#d-phone').value.trim(),email:$('#d-email').value.trim(),country:'Australia'
+  };
+  fillCheckoutSummary();
+  setStep(4);
+});
+$('#co-back2').addEventListener('click',()=>setStep(3));   /* payment back -> delivery */
 $$('[data-pay]').forEach(b=>b.addEventListener('click',()=>{
   $('#ordNo').textContent='AST-ORD-'+(10000+Math.random()*89999|0);
   state.bag=[];updateCart();
-  setStep(4);
+  setStep(5);
 }));
 
 /* =================================================================
@@ -2499,7 +2570,7 @@ faq:{t:'Frequently Asked Questions',l:'Everything you might like to know before,
 <h2>How does symbolic star naming work?</h2><p>You explore our interactive galaxy, choose an unnamed star, and give it a name of your choosing. We record the name, the star's catalogue reference and its coordinates permanently in the Astralis Registry, then craft your personalised certificate and star map.</p>
 <h2>Is the star name officially recognised by scientific organisations?</h2><p>No, and we believe in being completely upfront about this. Astralis star naming is symbolic. Names are recorded in our own private registry and are not recognised by the International Astronomical Union or the scientific community. What you're giving is a meaningful gesture and a beautiful keepsake, not a scientific designation.</p>
 <h2>What do customers receive?</h2><p>Every package includes a personalised certificate bearing the star's name, registry ID, celestial coordinates and star details. Depending on your package, you may also receive a custom star map, a museum-quality printed certificate in a luxury presentation folder, or a framed certificate inside a keepsake gift box.</p>
-<h2>How long does delivery take?</h2><p>Digital certificates arrive in your inbox within minutes of ordering. Printed packages are produced and dispatched within 1 to 2 business days, with tracked worldwide shipping. Ultimate Gift orders receive priority processing.</p>
+<h2>How long does delivery take?</h2><p>Digital certificates arrive in your inbox within minutes of ordering. Printed packages are produced and dispatched within 1 to 2 business days, with tracked shipping across Australia. Ultimate Gift orders receive priority processing. We currently ship within Australia only.</p>
 <h2>What information is included on the certificate?</h2><p>The star's dedicated name, the recipient and occasion, your personal message, right ascension and declination, constellation, apparent magnitude, spectral class, galactic sector, a unique registry ID with verification QR code, and the official Astralis seal and registrar signatures.</p>
 <h2>Can I choose my own star?</h2><p>Absolutely, and it's the best part. Our Astralis Registry explorer lets you fly through an interactive galaxy and personally discover your star, viewing its constellation, brightness and distance before you claim it. If you prefer, we can also allocate a beautiful star on your behalf.</p>
 <h2>Can I personalise the certificate?</h2><p>Yes. You choose the star name, the recipient, the occasion and a personal message, and you can preview the certificate live as you type. Certificates are available in two finishes: Midnight (deep navy) and Ivory (classic light).</p>
