@@ -227,13 +227,34 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .d-cell{background:rgba(255,255,255,.035);border:1px solid var(--glass-brd);border-radius:12px;padding:.75rem .9rem}
 .d-cell .k{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
 .d-cell .v{font-size:.95rem;color:var(--star);margin-top:.15rem}
-.d-myth{background:rgba(123,92,240,.08);border:1px solid rgba(123,92,240,.25);border-radius:14px;padding:1rem 1.1rem;margin-bottom:1.4rem}
-.d-myth h5{font-family:var(--display);font-size:1.1rem;color:var(--violet-soft);margin-bottom:.3rem}
-.d-myth p{font-size:.84rem;color:var(--mute)}
+.d-myth{position:relative;background:linear-gradient(165deg,rgba(123,92,240,.11),rgba(123,92,240,.04));border:1px solid rgba(123,92,240,.26);border-radius:14px;padding:1rem 1.1rem;margin-bottom:1.3rem;overflow:hidden}
+.d-myth::before{content:'';position:absolute;inset:0;background:radial-gradient(120% 90% at 100% 0,rgba(123,92,240,.16),transparent 60%);pointer-events:none}
+.d-myth-head{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;flex-wrap:wrap}
+.d-myth h5{font-family:var(--display);font-size:1.15rem;color:var(--violet-soft);margin:0}
+.d-myth-nick{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(201,208,230,.7)}
+.d-myth p{font-size:.84rem;line-height:1.55;color:var(--mute);margin-top:.4rem}
+.d-myth-meta{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:.85rem}
+.d-mm{background:rgba(255,255,255,.04);border:1px solid rgba(123,92,240,.14);border-radius:10px;padding:.5rem .6rem}
+.d-mm-k{display:block;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.d-mm-v{display:block;font-size:.78rem;color:var(--star);margin-top:.15rem}
+.d-myth-fact{font-size:.78rem;line-height:1.5;color:rgba(201,208,230,.82);margin-top:.85rem;padding-top:.7rem;border-top:1px solid rgba(123,92,240,.16)}
 .d-claim{width:100%;margin-top:.4rem}
 .d-note{text-align:center;font-size:.72rem;color:var(--mute);margin-top:.7rem}
-.detail .nearby{font-size:.78rem;color:var(--mute);margin-top:1.2rem}
-.detail .nearby b{color:var(--star);font-weight:500}
+.detail .nearby{margin-top:1.4rem}
+.nearby-h{display:flex;align-items:center;gap:.6rem;font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:.7rem}
+.nearby-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--glass-brd),transparent)}
+.nb-star{background:rgba(255,255,255,.03);border:1px solid var(--glass-brd);border-radius:12px;padding:.7rem .85rem;margin-bottom:.55rem;transition:border-color .3s,background .3s,transform .3s}
+.nb-star:hover{border-color:rgba(217,185,108,.4);background:rgba(217,185,108,.05);transform:translateX(2px)}
+.nb-top{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
+.nb-name{font-family:var(--display);font-size:1rem;color:var(--star)}
+.nb-mag{font-size:.66rem;letter-spacing:.05em;color:var(--gold);white-space:nowrap}
+.nb-meta{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:.1rem}
+.nb-desc{font-size:.76rem;line-height:1.45;color:var(--mute);margin-top:.35rem}
+/* re-trigger fade-up when a new star is shown */
+@keyframes dFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.detail.on .d-myth,.detail.on .nearby{animation:dFadeUp .55s cubic-bezier(.2,.8,.2,1) both}
+.detail.on .nearby{animation-delay:.08s}
+@media(prefers-reduced-motion:reduce){.detail.on .d-myth,.detail.on .nearby{animation:none}}
 /* claim toast */
 .toast{position:fixed;left:50%;bottom:2rem;transform:translate(-50%,150%);background:rgba(13,16,38,.92);border:1px solid var(--line);border-radius:14px;padding:1rem 1.6rem;z-index:400;backdrop-filter:blur(16px);transition:transform .6s cubic-bezier(.2,.8,.2,1);display:flex;gap:.8rem;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,.55);max-width:92vw}
 .toast.on{transform:translate(-50%,0)}
@@ -905,13 +926,21 @@ footer a:hover{color:var(--gold)}
       <div class="d-cell"><div class="k">Spectral class</div><div class="v" id="d-spec">—</div></div>
       <div class="d-cell"><div class="k">Constellation</div><div class="v" id="d-const">—</div></div>
     </div>
-    <div class="d-myth">
-      <h5 id="d-myth-name">Lyra</h5>
+    <div class="d-myth" id="d-myth">
+      <div class="d-myth-head">
+        <h5 id="d-myth-name">Lyra</h5>
+        <span class="d-myth-nick" id="d-myth-nick">The Lyre</span>
+      </div>
       <p id="d-myth-text">The lyre of Orpheus, whose music could charm stones and rivers, placed among the stars so its song would never end.</p>
+      <div class="d-myth-meta" id="d-myth-meta">
+        <div class="d-mm"><span class="d-mm-k">Best viewed</span><span class="d-mm-v" id="d-myth-months">June–October</span></div>
+        <div class="d-mm"><span class="d-mm-k">Visibility</span><span class="d-mm-v" id="d-myth-hemi">Both hemispheres</span></div>
+      </div>
+      <p class="d-myth-fact" id="d-myth-fact">✦ A point of interest about this constellation.</p>
     </div>
     <button class="btn btn-gold d-claim" id="claimBtn">Claim This Star ✦</button>
     <p class="d-note">Free 15-minute reservation · No payment yet</p>
-    <p class="nearby" id="d-nearby">Nearby stars: <b>—</b></p>
+    <div class="nearby" id="d-nearby"></div>
   </aside>
 </div>
 
@@ -1310,42 +1339,113 @@ function starMapSVG(seed){
     +'<circle cx="50" cy="50" r="42.5" fill="none" stroke="var(--cg)" stroke-width=".3" stroke-dasharray="1.5 2.5" opacity=".7"/>'
     +'</svg>';
 }
-/* An embossed official certification seal: reeded metal rim, guilloché security
-   ring, engraved curved registry text, the Astralis star emblem and micro-stars,
-   with a domed metallic gradient and an inner emboss shadow for depth. */
+/* A hand-pressed celestial wax seal. An irregular wax disc — deterministic
+   pressure dents, an off-round contour — takes a crisp circular matrix
+   impression: a beaded heraldic border, a legend ring of engraved registry
+   text flanked by star separators, and a central ceremonial medallion (engraved
+   sunburst, tilted orbital rings, the Astralis star). Every relief element is
+   double-struck — incised dark + raised light under a fixed top-left light — for
+   genuine embossed depth. Gold throughout, drawn in the 100x100 box. */
 function certSealSVG(){
-  const u=++_certUid;
-  let reeds='',guil='',mini='';
-  for(let k=0;k<72;k++){const a=k/72*6.283,c=Math.cos(a),s=Math.sin(a);
-    reeds+='<line x1="'+(50+c*45).toFixed(2)+'" y1="'+(50+s*45).toFixed(2)+'" x2="'+(50+c*47.4).toFixed(2)+'" y2="'+(50+s*47.4).toFixed(2)+'"/>';}
-  for(let k=0;k<30;k++){const a=k/30*6.283;guil+='<circle cx="'+(50+Math.cos(a)*23.5).toFixed(2)+'" cy="'+(50+Math.sin(a)*23.5).toFixed(2)+'" r="6.2"/>';}
-  for(let k=0;k<8;k++){const a=k/8*6.283-1.57,x=(50+Math.cos(a)*15.5).toFixed(1),y=(50+Math.sin(a)*15.5).toFixed(1);
-    mini+='<path transform="translate('+x+' '+y+') scale(.12) translate(-12 -12)" d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" fill="#6B4E1C" opacity=".5"/>';}
-  return '<svg class="ct-sealsvg" viewBox="0 0 100 100">'
-    +'<defs>'
-    +'<radialGradient id="sm'+u+'" cx=".36" cy=".3" r=".82"><stop offset="0" stop-color="#FCEFC6"/><stop offset=".42" stop-color="#E7CB7C"/><stop offset=".76" stop-color="#C49C4C"/><stop offset="1" stop-color="#8C6A2E"/></radialGradient>'
-    +'<linearGradient id="se'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FCEFC6"/><stop offset="1" stop-color="#B68F3C"/></linearGradient>'
-    +'<radialGradient id="sd'+u+'" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="#5E430F" stop-opacity="0"/><stop offset=".9" stop-color="#5E430F" stop-opacity=".3"/><stop offset="1" stop-color="#5E430F" stop-opacity="0"/></radialGradient>'
-    +'<path id="at'+u+'" d="M15,50 A35,35 0 0 1 85,50" fill="none"/>'
-    +'<path id="ab'+u+'" d="M16,50 A34,34 0 0 0 84,50" fill="none"/>'
-    +'</defs>'
-    +'<circle cx="50" cy="50" r="48" fill="url(#sm'+u+')"/>'
-    +'<g stroke="#7A5A22" stroke-opacity=".55" stroke-width=".5">'+reeds+'</g>'
-    +'<circle cx="50" cy="50" r="44.4" fill="none" stroke="#5E430F" stroke-opacity=".5" stroke-width=".5"/>'
-    +'<circle cx="50" cy="50" r="43.2" fill="none" stroke="#FCEFC6" stroke-opacity=".4" stroke-width=".4"/>'
-    +'<g fill="none" stroke="#8A6A2E" stroke-opacity=".4" stroke-width=".28">'+guil+'</g>'
-    +'<circle cx="50" cy="50" r="30.5" fill="none" stroke="#5E430F" stroke-opacity=".5" stroke-width=".5"/>'
-    +'<circle cx="50" cy="50" r="29.4" fill="none" stroke="#FCEFC6" stroke-opacity=".4" stroke-width=".35"/>'
-    +'<g font-family="Georgia,\'Times New Roman\',serif" font-weight="600">'
-    +'<text font-size="4.7" letter-spacing="1" fill="#5E430F"><textPath href="#at'+u+'" startOffset="50%" text-anchor="middle">ASTRALIS CELESTIAL REGISTRY</textPath></text>'
-    +'<text font-size="4.2" letter-spacing="1.1" fill="#5E430F"><textPath href="#ab'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY REGISTERED · AUSTRALIA</textPath></text>'
-    +'</g>'
-    +mini
-    +'<path transform="translate(50 49.5) scale(1.15) translate(-12 -12)" d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" fill="url(#se'+u+')" stroke="#5E430F" stroke-opacity=".45" stroke-width=".5"/>'
-    +'<circle cx="50" cy="49.5" r="1.25" fill="#FFF7DC"/>'
-    +'<path d="M22,33 A38,38 0 0 1 66,15" fill="none" stroke="#FFF8E0" stroke-opacity=".55" stroke-width="1.1" stroke-linecap="round"/>'
-    +'<circle cx="50" cy="50" r="48" fill="url(#sd'+u+')"/>'
-    +'</svg>';
+  const u=++_certUid, TAU=6.28318530718, Cs=Math.cos, Sin=Math.sin;
+  /* deterministic PRNG so the hand-pressed imperfections never jitter between renders */
+  let _s=1779033703;const rnd=()=>{_s=(_s*1103515245+12345)&0x7fffffff;return _s/0x7fffffff;};
+  /* Catmull-Rom -> cubic bezier through a closed point loop */
+  const smooth=(pts)=>{const n=pts.length;let d='M'+pts[0][0].toFixed(2)+','+pts[0][1].toFixed(2);
+    for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+      d+='C'+(p1[0]+(p2[0]-p0[0])/6).toFixed(2)+','+(p1[1]+(p2[1]-p0[1])/6).toFixed(2)+' '+(p2[0]-(p3[0]-p1[0])/6).toFixed(2)+','+(p2[1]-(p3[1]-p1[1])/6).toFixed(2)+' '+p2[0].toFixed(2)+','+p2[1].toFixed(2);}
+    return d+'Z';};
+  /* irregular wax blob: soft harmonics + localized pressure marks [angle,width,depth]
+     (negative bites inward where the matrix pressed deep, positive squeezes wax out) */
+  const dents=[[0.5,0.42,-2.4],[2.45,0.55,-1.5],[3.95,0.34,-2.8],[5.3,0.48,-1.4],[1.5,0.7,1.5]];
+  const N=140, raw=[];
+  for(let k=0;k<N;k++){const a=k/N*TAU;
+    let r=45.6+Sin(a*2+0.7)*1.4+Sin(a*3+1.9)*0.85+Sin(a*5+0.4)*0.45+Sin(a*8+1.2)*0.24+(rnd()-0.5)*0.45;
+    for(const dn of dents){const da=Math.abs(((a-dn[0]+Math.PI)%TAU+TAU)%TAU-Math.PI);r+=Math.exp(-(da*da)/(dn[1]*dn[1]))*dn[2];}
+    raw.push([a,r]);}
+  const xy=(a,r)=>[50+Cs(a)*r,50+Sin(a)*r];
+  const outer=smooth(raw.map(p=>xy(p[0],p[1])));
+  /* beaded heraldic border ring (embossed: dark bead + light highlight) */
+  let beads='';for(let k=0;k<54;k++){const a=k/54*TAU;beads+='<circle cx="'+(50+Cs(a)*39).toFixed(2)+'" cy="'+(50+Sin(a)*39).toFixed(2)+'" r="1.05"/>';}
+  /* ceremonial sunburst (alternating long/short engraved rays) */
+  let rays='';for(let k=0;k<24;k++){const a=k/24*TAU-1.5708,w=0.052,ro=k%2?16.4:22.6,ri=9.9;
+    rays+='<path d="M'+(50+Cs(a-w)*ri).toFixed(2)+','+(50+Sin(a-w)*ri).toFixed(2)+' L'+(50+Cs(a)*ro).toFixed(2)+','+(50+Sin(a)*ro).toFixed(2)+' L'+(50+Cs(a+w)*ri).toFixed(2)+','+(50+Sin(a+w)*ri).toFixed(2)+'Z"/>';}
+  const star='M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z';
+  /* ring of tiny stars around the device */
+  let motes='';for(let k=0;k<8;k++){const a=k/8*TAU+0.39,x=50+Cs(a)*24.2,y=50+Sin(a)*24.2,sc=k%2?0.07:0.05;
+    motes+='<path transform="translate('+x.toFixed(2)+' '+y.toFixed(2)+') scale('+sc+') translate(-12 -12)" d="'+star+'"/>';}
+  /* struck-metal wear scratches */
+  let wear='';for(let k=0;k<9;k++){const a=rnd()*TAU,r=8+rnd()*30,x=50+Cs(a)*r,y=50+Sin(a)*r,a2=rnd()*TAU,len=2+rnd()*6;
+    wear+='<line x1="'+x.toFixed(1)+'" y1="'+y.toFixed(1)+'" x2="'+(x+Cs(a2)*len).toFixed(1)+'" y2="'+(y+Sin(a2)*len).toFixed(1)+'"/>';}
+  const offUL=s=>s.replace(/cx="([\d.]+)" cy="([\d.]+)"/g,(m,a,b)=>'cx="'+(+a-0.35).toFixed(2)+'" cy="'+(+b-0.42).toFixed(2)+'"');
+  const offM=s=>s.replace(/translate\((\d[\d.]*) (\d[\d.]*)\)/g,(m,a,b)=>'translate('+(+a-0.3).toFixed(2)+' '+(+b-0.35).toFixed(2)+')');
+  const P=['<svg class="ct-sealsvg" viewBox="0 0 100 100">','<defs>'];
+  P.push('<radialGradient id="sm'+u+'" cx=".34" cy=".26" r=".95"><stop offset="0" stop-color="#FCEFC2"/><stop offset=".32" stop-color="#E9CC79"/><stop offset=".62" stop-color="#C99F4E"/><stop offset=".85" stop-color="#9C7836"/><stop offset="1" stop-color="#6B4D21"/></radialGradient>');
+  P.push('<radialGradient id="sf'+u+'" cx=".42" cy=".34" r=".74"><stop offset="0" stop-color="#DCB768"/><stop offset=".55" stop-color="#BE934A"/><stop offset="1" stop-color="#82602B"/></radialGradient>');
+  P.push('<linearGradient id="se'+u+'" x1=".1" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#FFF4CC"/><stop offset=".5" stop-color="#E6C277"/><stop offset="1" stop-color="#A87E36"/></linearGradient>');
+  P.push('<radialGradient id="md'+u+'" cx=".4" cy=".34" r=".72"><stop offset="0" stop-color="#C99F4E"/><stop offset=".7" stop-color="#956F30"/><stop offset="1" stop-color="#5E4318"/></radialGradient>');
+  P.push('<linearGradient id="rim'+u+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF7DC" stop-opacity=".95"/><stop offset=".5" stop-color="#E7CB7C" stop-opacity="0"/><stop offset="1" stop-color="#43300E" stop-opacity=".85"/></linearGradient>');
+  P.push('<radialGradient id="cg'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF6CE" stop-opacity=".8"/><stop offset="1" stop-color="#FFF6CE" stop-opacity="0"/></radialGradient>');
+  P.push('<radialGradient id="sh'+u+'" cx=".3" cy=".22" r=".55"><stop offset="0" stop-color="#FFFDF2" stop-opacity=".58"/><stop offset=".62" stop-color="#FFFDF2" stop-opacity="0"/></radialGradient>');
+  P.push('<radialGradient id="br'+u+'" cx=".68" cy=".77" r=".6"><stop offset=".38" stop-color="#241804" stop-opacity="0"/><stop offset="1" stop-color="#241804" stop-opacity=".42"/></radialGradient>');
+  P.push('<radialGradient id="sd'+u+'" cx=".5" cy=".5" r=".5"><stop offset=".58" stop-color="#3A2A0A" stop-opacity="0"/><stop offset=".88" stop-color="#3A2A0A" stop-opacity=".26"/><stop offset="1" stop-color="#241804" stop-opacity=".5"/></radialGradient>');
+  P.push('<path id="at'+u+'" d="M17.3,50 A32.7,32.7 0 0 1 82.7,50" fill="none"/>');
+  P.push('<path id="ab'+u+'" d="M18.4,50 A31.6,31.6 0 0 0 81.6,50" fill="none"/>');
+  P.push('<clipPath id="cp'+u+'"><path d="'+outer+'"/></clipPath>');
+  P.push('</defs>');
+  /* cast shadow of the pressed wax (offset -> raised hand-stamped depth) */
+  P.push('<path d="'+outer+'" transform="translate(1.5 2)" fill="#1F1503" opacity=".5"/>');
+  /* main wax body + clipped top-left sheen, bottom-right shade and wear */
+  P.push('<path d="'+outer+'" fill="url(#sm'+u+')" stroke="#4A340D" stroke-width=".5"/>');
+  P.push('<g clip-path="url(#cp'+u+')">');
+  P.push('<rect x="0" y="0" width="100" height="100" fill="url(#sh'+u+')"/>');
+  P.push('<rect x="0" y="0" width="100" height="100" fill="url(#br'+u+')"/>');
+  P.push('<g stroke="#FFF4CC" stroke-opacity=".15" stroke-width=".35" stroke-linecap="round">'+wear+'</g>');
+  P.push('</g>');
+  /* bevelled rim light on the wax edge */
+  P.push('<path d="'+outer+'" fill="none" stroke="url(#rim'+u+')" stroke-width="1.6"/>');
+  /* recessed legend table with a beaded border */
+  P.push('<circle cx="50" cy="50" r="37.4" fill="url(#sf'+u+')"/>');
+  P.push('<circle cx="50" cy="50" r="37.4" fill="none" stroke="#3A2A0A" stroke-opacity=".4" stroke-width=".7"/>');
+  P.push('<circle cx="49.6" cy="49.5" r="36.8" fill="none" stroke="#FFF3CC" stroke-opacity=".3" stroke-width=".5"/>');
+  P.push('<g fill="#473210" fill-opacity=".82">'+beads+'</g>');
+  P.push('<g fill="#FFF3CC" fill-opacity=".42">'+offUL(beads)+'</g>');
+  /* engraved legend text (light highlight under dark incision) */
+  P.push('<circle cx="50" cy="50" r="36" fill="none" stroke="#3A2A0A" stroke-opacity=".4" stroke-width=".5"/>');
+  P.push('<g font-family="Georgia,\'Times New Roman\',serif" font-weight="700">');
+  P.push('<text font-size="4.4" letter-spacing=".7" fill="#FFF4CC" fill-opacity=".55" transform="translate(-.4 -.45)"><textPath href="#at'+u+'" startOffset="50%" text-anchor="middle">ASTRALIS · CELESTIAL REGISTRY</textPath></text>');
+  P.push('<text font-size="4.4" letter-spacing=".7" fill="#34250A"><textPath href="#at'+u+'" startOffset="50%" text-anchor="middle">ASTRALIS · CELESTIAL REGISTRY</textPath></text>');
+  P.push('<text font-size="3.8" letter-spacing=".9" fill="#FFF4CC" fill-opacity=".55" transform="translate(-.4 -.45)"><textPath href="#ab'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY REGISTERED · AUSTRALIA</textPath></text>');
+  P.push('<text font-size="3.8" letter-spacing=".9" fill="#34250A"><textPath href="#ab'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY REGISTERED · AUSTRALIA</textPath></text>');
+  P.push('</g>');
+  /* star separators flanking the legend at 3 and 9 o'clock */
+  for(const sx of ['17.4','82.6']){P.push('<path transform="translate('+sx+' 49.6) scale(.07) translate(-12 -12)" d="'+star+'" fill="#FFF3CC" fill-opacity=".4"/><path transform="translate('+sx+' 50) scale(.07) translate(-12 -12)" d="'+star+'" fill="#34250A" fill-opacity=".75"/>');}
+  /* inner fillet (raised hairline) + recessed central field */
+  P.push('<circle cx="50" cy="50" r="28.4" fill="none" stroke="#3A2A0A" stroke-opacity=".5" stroke-width=".6"/>');
+  P.push('<circle cx="49.6" cy="49.5" r="27.9" fill="none" stroke="#FFF3CC" stroke-opacity=".32" stroke-width=".45"/>');
+  P.push('<circle cx="50" cy="50" r="28" fill="url(#sf'+u+')"/>');
+  P.push('<circle cx="50" cy="50" r="20" fill="url(#cg'+u+')"/>');
+  /* engraved sunburst behind the medallion */
+  P.push('<g fill="url(#se'+u+')" stroke="#3E2C0E" stroke-opacity=".4" stroke-width=".2">'+rays+'</g>');
+  /* ring of tiny stars (embossed) */
+  P.push('<g fill="#34250A" fill-opacity=".6">'+motes+'</g>');
+  P.push('<g fill="#FFF3CC" fill-opacity=".4">'+offM(motes)+'</g>');
+  /* tilted orbital rings — celestial motif */
+  P.push('<g fill="none" stroke-width=".55"><ellipse cx="50" cy="50" rx="17.4" ry="6.4" transform="rotate(-24 50 50)" stroke="#34250A" stroke-opacity=".5"/><ellipse cx="49.6" cy="49.4" rx="17.4" ry="6.4" transform="rotate(-24 49.6 49.4)" stroke="#FFF3CC" stroke-opacity=".24"/><ellipse cx="50" cy="50" rx="15.6" ry="5.8" transform="rotate(34 50 50)" stroke="#34250A" stroke-opacity=".5"/></g>');
+  P.push('<circle cx="'+(50+Cs(-0.42)*17.4).toFixed(2)+'" cy="'+(50+Sin(-0.42)*6.4).toFixed(2)+'" r="1.05" fill="#5A3F12"/>');
+  /* central raised medallion (recessed dark disc so the bright star reads strongly
+     even when the seal is shrunk to certificate size) + Astralis star */
+  P.push('<circle cx="50" cy="50" r="10.6" fill="url(#md'+u+')" stroke="#241804" stroke-opacity=".6" stroke-width=".6"/>');
+  P.push('<circle cx="50" cy="50" r="10.6" fill="none" stroke="#FFF3CC" stroke-opacity=".28" stroke-width=".4" stroke-dasharray="14 26" transform="rotate(-40 50 50)"/>');
+  P.push('<path transform="translate(50.5 50.7) scale(.7) translate(-12 -12)" d="'+star+'" fill="#1E1404" fill-opacity=".6"/>');
+  P.push('<path transform="translate(49.65 49.45) scale(.7) translate(-12 -12)" d="'+star+'" fill="url(#se'+u+')" stroke="#241804" stroke-opacity=".55" stroke-width=".35"/>');
+  P.push('<path transform="translate(49.65 49.45) scale(.34) translate(-12 -12)" d="'+star+'" fill="#FFF8E0" fill-opacity=".7"/>');
+  P.push('<circle cx="49.65" cy="49.4" r="1.4" fill="#FFFCF0"/>');
+  /* overall inner shadow seats the relief, then a crisp top-left edge glint */
+  P.push('<path d="'+outer+'" fill="url(#sd'+u+')"/>');
+  P.push('<path d="M26,30 A36,36 0 0 1 60,14" fill="none" stroke="#FFFBEC" stroke-opacity=".5" stroke-width="1" stroke-linecap="round"/>');
+  P.push('</svg>');
+  return P.join('');
 }
 function certCell(ic,k,cls,v){return '<div class="ct-cell">'+CERT_ICONS[ic]+'<div><div class="k">'+k+'</div><div class="v '+cls+'">'+v+'</div></div></div>';}
 function certGalaxyTexture(ivory){
@@ -1474,7 +1574,31 @@ const CONSTELLATIONS=[
  ['Draco','The dragon coiled around the pole star, guardian of golden apples.','—'],
  ['Centaurus','The wise centaur Chiron, teacher of heroes, nearest bright neighbour to our Sun.','—']
 ];
-const SPECTRAL=['O5 V','B3 V','A1 V','A7 V','F2 V','F8 V','G2 V','G8 V','K1 III','K5 V','M0 V','M4 III'];
+/* rich constellation data: nickname, story, Australian viewing window, hemisphere,
+   an astronomical fact, and real notable neighbouring stars {n:name,m:mag,d:ly,s:desc} */
+const CONST_INFO={
+ Lyra:{nick:'The Lyre',months:'June–October',hemi:'Both hemispheres · low in the north from Australia',fact:'Home to Vega, the 5th-brightest star and once Earth’s northern pole star.',stars:[{n:'Vega',m:'0.03',d:'25 ly',s:'Brilliant blue-white star, a cornerstone of the Summer Triangle'},{n:'Sheliak',m:'3.5',d:'960 ly',s:'An eclipsing binary that dims every 13 days'},{n:'Sulafat',m:'3.2',d:'620 ly',s:'A blue giant framing the lyre'}]},
+ Orion:{nick:'The Hunter',months:'December–March',hemi:'Both hemispheres · appears upside-down from Australia',fact:'Contains the Orion Nebula, a glowing nursery where new stars are born.',stars:[{n:'Betelgeuse',m:'0.5',d:'640 ly',s:'A red supergiant that may one day erupt as a supernova'},{n:'Rigel',m:'0.13',d:'860 ly',s:'A blue supergiant, the hunter’s brilliant foot'},{n:'Bellatrix',m:'1.6',d:'250 ly',s:'The ‘Amazon Star’ at Orion’s shoulder'}]},
+ Cassiopeia:{nick:'The Queen',months:'September–December',hemi:'Northern · skims the horizon from northern Australia',fact:'Its five bright stars trace an unmistakable letter ‘W’.',stars:[{n:'Schedar',m:'2.2',d:'230 ly',s:'An orange giant, the queen’s heart'},{n:'Caph',m:'2.3',d:'54 ly',s:'A white star at one tip of the W'},{n:'Ruchbah',m:'2.7',d:'99 ly',s:'A variable star at the queen’s knee'}]},
+ Cygnus:{nick:'The Swan',months:'July–October',hemi:'Northern · visible low in the north from Australia',fact:'Its tail star Deneb is among the most luminous stars known.',stars:[{n:'Deneb',m:'1.25',d:'1,400 ly',s:'A blue-white supergiant, tail of the swan'},{n:'Albireo',m:'3.1',d:'430 ly',s:'A gorgeous gold-and-blue double star'},{n:'Sadr',m:'2.2',d:'1,500 ly',s:'A supergiant at the swan’s heart'}]},
+ Andromeda:{nick:'The Chained Princess',months:'October–December',hemi:'Northern · low from Australia',fact:'Holds the Andromeda Galaxy, the most distant thing visible to the naked eye.',stars:[{n:'Alpheratz',m:'2.1',d:'97 ly',s:'Shared with the Great Square of Pegasus'},{n:'Mirach',m:'2.1',d:'200 ly',s:'A red giant, a signpost to the galaxy'},{n:'Almach',m:'2.1',d:'350 ly',s:'A stunning multiple star of contrasting colours'}]},
+ Perseus:{nick:'The Hero',months:'November–January',hemi:'Northern · low from Australia',fact:'The radiant of the Perseid meteor shower each August.',stars:[{n:'Mirfak',m:'1.8',d:'510 ly',s:'A yellow supergiant, the hero’s brightest star'},{n:'Algol',m:'2.1',d:'90 ly',s:'The ‘Demon Star’, a famous eclipsing binary'}]},
+ Aquila:{nick:'The Eagle',months:'July–September',hemi:'Both hemispheres',fact:'Its star Altair spins so fast it is flattened into an oval.',stars:[{n:'Altair',m:'0.77',d:'17 ly',s:'A fast-spinning white star, a Summer Triangle vertex'},{n:'Tarazed',m:'2.7',d:'460 ly',s:'An orange giant beside Altair'},{n:'Alshain',m:'3.7',d:'45 ly',s:'A modest yellow companion'}]},
+ Pegasus:{nick:'The Winged Horse',months:'September–November',hemi:'Both hemispheres',fact:'Its body forms the vast ‘Great Square of Pegasus’.',stars:[{n:'Enif',m:'2.4',d:'690 ly',s:'An orange supergiant, the horse’s nose'},{n:'Markab',m:'2.5',d:'130 ly',s:'A blue-white corner of the Great Square'},{n:'Scheat',m:'2.4',d:'200 ly',s:'A red giant at another corner'}]},
+ Leo:{nick:'The Lion',months:'March–May',hemi:'Both hemispheres',fact:'The radiant of the Leonid meteor shower each November.',stars:[{n:'Regulus',m:'1.35',d:'79 ly',s:'The ‘Little King’, the lion’s heart'},{n:'Denebola',m:'2.1',d:'36 ly',s:'A white star marking the tail'},{n:'Algieba',m:'2.0',d:'130 ly',s:'A golden double star in the mane'}]},
+ Taurus:{nick:'The Bull',months:'November–February',hemi:'Both hemispheres',fact:'Holds both the Pleiades and the Hyades, the nearest star clusters.',stars:[{n:'Aldebaran',m:'0.85',d:'65 ly',s:'A fiery orange giant, the bull’s eye'},{n:'Elnath',m:'1.7',d:'130 ly',s:'A blue giant on the bull’s horn'},{n:'Alcyone',m:'2.9',d:'440 ly',s:'Brightest of the Seven Sisters'}]},
+ Gemini:{nick:'The Twins',months:'December–March',hemi:'Both hemispheres',fact:'Pollux hosts a confirmed exoplanet, a distant giant world.',stars:[{n:'Pollux',m:'1.15',d:'34 ly',s:'An orange giant, the brighter twin'},{n:'Castor',m:'1.6',d:'51 ly',s:'A remarkable six-star system'},{n:'Alhena',m:'1.9',d:'110 ly',s:'A bright white star at the twins’ feet'}]},
+ Scorpius:{nick:'The Scorpion',months:'May–August',hemi:'Southern · rides high overhead from Australia',fact:'Its heart, Antares, is a red supergiant some 700× the Sun’s width.',stars:[{n:'Antares',m:'1.0',d:'550 ly',s:'A vast red supergiant, the scorpion’s heart'},{n:'Shaula',m:'1.6',d:'570 ly',s:'A blue star in the stinging tail'},{n:'Sargas',m:'1.9',d:'270 ly',s:'A bright giant along the tail'}]},
+ Sagittarius:{nick:'The Archer',months:'June–September',hemi:'Southern · passes high from Australia',fact:'Its ‘teapot’ points straight toward the centre of the Milky Way.',stars:[{n:'Kaus Australis',m:'1.8',d:'140 ly',s:'A blue giant at the base of the bow'},{n:'Nunki',m:'2.0',d:'230 ly',s:'A hot blue star on the archer’s body'},{n:'Ascella',m:'2.6',d:'88 ly',s:'A binary at the teapot’s handle'}]},
+ Aquarius:{nick:'The Water-Bearer',months:'September–November',hemi:'Both hemispheres',fact:'One of the oldest constellations, charted by the ancient Babylonians.',stars:[{n:'Sadalsuud',m:'2.9',d:'540 ly',s:'A rare yellow supergiant, ‘luckiest of the lucky’'},{n:'Sadalmelik',m:'2.9',d:'520 ly',s:'A supergiant, ‘lucky one of the king’'},{n:'Skat',m:'3.3',d:'160 ly',s:'A white star in the flowing water'}]},
+ Carina:{nick:'The Keel',months:'January–April',hemi:'Southern · a jewel of the Australian sky',fact:'Home to Canopus, the second-brightest star in the entire night sky.',stars:[{n:'Canopus',m:'−0.74',d:'310 ly',s:'The 2nd-brightest star, a brilliant white supergiant'},{n:'Miaplacidus',m:'1.7',d:'110 ly',s:'A blue-white star of the keel'},{n:'Avior',m:'1.9',d:'630 ly',s:'An orange giant binary'}]},
+ Crux:{nick:'The Southern Cross',months:'March–June',hemi:'Southern · proudly on the Australian flag',fact:'The smallest constellation of all, yet the most beloved of the south.',stars:[{n:'Acrux',m:'0.77',d:'320 ly',s:'A brilliant blue double, the cross’s foot'},{n:'Mimosa',m:'1.25',d:'280 ly',s:'A hot blue giant, the cross’s left arm'},{n:'Gacrux',m:'1.6',d:'88 ly',s:'A red giant crowning the cross'}]},
+ Phoenix:{nick:'The Firebird',months:'October–December',hemi:'Southern',fact:'A modern constellation, charted by 16th-century sea navigators.',stars:[{n:'Ankaa',m:'2.4',d:'77 ly',s:'An orange giant, brightest of the firebird'},{n:'Beta Phoenicis',m:'3.3',d:'200 ly',s:'A close pair of yellow giants'}]},
+ Vela:{nick:'The Sails',months:'February–April',hemi:'Southern',fact:'Holds the Vela supernova remnant, the wreck of a star that exploded.',stars:[{n:'Suhail',m:'2.2',d:'570 ly',s:'A red supergiant of the sails'},{n:'Regor',m:'1.8',d:'1,100 ly',s:'A rare, fierce Wolf-Rayet star'},{n:'Markeb',m:'2.5',d:'540 ly',s:'A blue-white giant'}]},
+ Draco:{nick:'The Dragon',months:'May–August',hemi:'Northern · mostly hidden from Australia',fact:'Its star Thuban was the pole star when the Egyptian pyramids were built.',stars:[{n:'Eltanin',m:'2.2',d:'150 ly',s:'An orange giant, the dragon’s eye'},{n:'Thuban',m:'3.6',d:'300 ly',s:'The ancient pole star of the pharaohs'},{n:'Rastaban',m:'2.8',d:'380 ly',s:'A yellow giant, the dragon’s head'}]},
+ Centaurus:{nick:'The Centaur',months:'April–July',hemi:'Southern · high overhead from Australia',fact:'Contains Alpha Centauri, the closest star system to our own Sun.',stars:[{n:'Rigil Kentaurus',m:'−0.27',d:'4.4 ly',s:'Alpha Centauri — the Sun’s nearest stellar neighbour'},{n:'Hadar',m:'0.6',d:'390 ly',s:'A brilliant blue giant pointer star'},{n:'Menkent',m:'2.1',d:'61 ly',s:'An orange giant in the centaur’s shoulder'}]}
+};
+const SPECTRAL=['O5 V','B3 V','A1 V','A7 V','G2 V','G8 V','K1 III','K5 V','M0 V','M4 III','F2 V','F8 V'];
 const SECTORS=['Inner Core','Orion Spur','Outer Arm','Perseus Arm','Norma Arm','Sagittarius Arm','Halo Reach'];
 
 /* r128-safe uniform random direction */
@@ -1723,10 +1847,14 @@ function buildGalaxy(){
 
   /* split by status into three Points groups */
   const buckets={available:[],reserved:[],featured:[]};
+  const constReps={}; /* ci -> a few representative available star indices (famous-star landmarks) */
   for(let i=0;i<N;i++){
     const v=new THREE.Vector3(pos[i*3],pos[i*3+1],pos[i*3+2]);
-    buckets[starInfo(i,v).status].push(i);
+    const si=starInfo(i,v);
+    buckets[si.status].push(i);
+    if(si.status==='available'){const a=constReps[si.ci]||(constReps[si.ci]=[]);if(a.length<3)a.push(i);}
   }
+  E.constReps=constReps;
   const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(190,205,255,.55)');
   const texGold=spriteTexture('rgba(255,238,196,1)','rgba(217,185,108,.3)');
   const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(242,220,162,.85)');
@@ -1779,6 +1907,18 @@ function buildGalaxy(){
     const gSau=place('Trinh Thi Sau',-140,10,-60);
     nextTo('Nguyen Nam Son',gSau);
     nextTo('Nguyen Anh Tuan',E.choAnGi);
+  }
+  /* famous real stars — the notable stars of each major constellation, placed as
+     registry landmarks: searchable, but named => isTaken() true => not for sale */
+  E.famousStars={};
+  for(const ciStr in constReps){
+    const ci=+ciStr,cn=CONSTELLATIONS[ci]&&CONSTELLATIONS[ci][0];
+    const inf=cn&&CONST_INFO[cn];
+    if(!inf||!inf.stars||!inf.stars.length)continue;
+    const reps=constReps[ci];
+    inf.stars.forEach((s,idx)=>{const gi=reps[idx];
+      if(gi===undefined||E.names[gi])return; /* no slot, or don't overwrite a personal star */
+      E.names[gi]=s.n;E.famousStars[gi]=true;});
   }
   E.searchList=Object.keys(E.names).map(giStr=>{const gi=+giStr,name=E.names[gi];return{gi,name,lname:name.toLowerCase()};});
 
@@ -2062,14 +2202,34 @@ function showDetail(info,v,gi){
   $('#d-ra').textContent=info.ra;$('#d-dec').textContent=info.dec;
   $('#d-dist').textContent=info.dist.toLocaleString()+' light years';
   $('#d-mag').textContent=info.mag;$('#d-spec').textContent=info.spec;
-  $('#d-const').textContent=CONSTELLATIONS[info.ci][0];
-  $('#d-myth-name').textContent=CONSTELLATIONS[info.ci][0]+(CONSTELLATIONS[info.ci][2]!=='—'?' · '+CONSTELLATIONS[info.ci][2]:'');
+  const cn=CONSTELLATIONS[info.ci][0];
+  $('#d-const').textContent=cn;
+  const cinf=CONST_INFO[cn]||{};
+  $('#d-myth-name').textContent=cn;
+  const nick=cinf.nick||(CONSTELLATIONS[info.ci][2]!=='—'?CONSTELLATIONS[info.ci][2]:'');
+  $('#d-myth-nick').textContent=nick;$('#d-myth-nick').style.display=nick?'':'none';
   $('#d-myth-text').textContent=CONSTELLATIONS[info.ci][1];
-  /* nearby star ids */
-  const near=[];
-  for(let k=1;k<=3;k++)near.push('AST-'+String(100000+((gi+k*37)*7919)%900000));
-  $('#d-nearby').innerHTML='Nearby stars: <b>'+near.join(' · ')+'</b>';
-  $('#detail').classList.add('on');$('#detail').setAttribute('aria-hidden','false');
+  $('#d-myth-months').textContent=cinf.months||'—';
+  $('#d-myth-hemi').textContent=cinf.hemi||'—';
+  const fact=$('#d-myth-fact');
+  if(cinf.fact){fact.textContent='✦ '+cinf.fact;fact.style.display='';}else fact.style.display='none';
+  /* nearby notable stars — real neighbours from the same constellation
+     (exclude the star itself when a famous landmark is selected) */
+  const nb=$('#d-nearby');
+  const near=(cinf.stars||[]).filter(s=>s.n!==nm);
+  if(near.length){
+    nb.innerHTML='<div class="nearby-h">Nearby notable stars</div>'+near.map(s=>
+      '<div class="nb-star"><div class="nb-top"><span class="nb-name">'+s.n+'</span><span class="nb-mag">mag '+s.m+'</span></div>'+
+      '<div class="nb-meta">'+s.d+' from Earth</div><div class="nb-desc">'+s.s+'</div></div>').join('');
+    nb.style.display='';
+  }else nb.style.display='none';
+  /* retrigger the fade-up when navigating star→star while the panel is already open */
+  const dt=$('#detail'),m=$('#d-myth');
+  if(dt.classList.contains('on')){
+    m.style.animation='none';nb.style.animation='none';void m.offsetWidth;
+    requestAnimationFrame(()=>{m.style.animation='';nb.style.animation='';});
+  }
+  dt.classList.add('on');dt.setAttribute('aria-hidden','false');
 }
 function clearConstellation(){
   const E=EXP;
