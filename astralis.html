@@ -1320,7 +1320,8 @@ function starMapSVG(seed){
     +'<radialGradient id="na'+u+'" cx=".34" cy=".32" r=".5"><stop offset="0" stop-color="var(--cg)" stop-opacity=".15"/><stop offset="1" stop-color="var(--cg)" stop-opacity="0"/></radialGradient>'
     +'<radialGradient id="nb'+u+'" cx=".72" cy=".7" r=".48"><stop offset="0" stop-color="#8E7BDC" stop-opacity=".16"/><stop offset="1" stop-color="#8E7BDC" stop-opacity="0"/></radialGradient>'
     +'<radialGradient id="ns'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".8"/><stop offset=".5" stop-color="#fff" stop-opacity=".16"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
-    +'<radialGradient id="gl'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff"/><stop offset=".16" stop-color="#FFF6DC" stop-opacity=".9"/><stop offset=".46" stop-color="var(--cg2)" stop-opacity=".4"/><stop offset="1" stop-color="var(--cg2)" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="gl'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff"/><stop offset=".09" stop-color="#FFF8E6"/><stop offset=".24" stop-color="#FFE7AC" stop-opacity=".72"/><stop offset=".55" stop-color="#F1C572" stop-opacity=".26"/><stop offset="1" stop-color="#E7BC66" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="bl'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#FFF6E2" stop-opacity=".65"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
     +'<linearGradient id="sv'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
     +'<linearGradient id="sh'+u+'" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
     +'<clipPath id="cp'+u+'"><circle cx="50" cy="50" r="45.6"/></clipPath>'
@@ -1329,121 +1330,75 @@ function starMapSVG(seed){
     +'<g clip-path="url(#cp'+u+')">'
     +'<rect width="100" height="100" fill="url(#na'+u+')"/><rect width="100" height="100" fill="url(#nb'+u+')"/>'
     +field+near
-    +'<circle cx="50" cy="49" r="24" fill="url(#gl'+u+')"/>'
-    +'<g transform="rotate(45 50 49)" opacity=".45"><path d="M50 35 L50.8 49 L50 63 L49.2 49 Z" fill="url(#sv'+u+')"/><path d="M36 49 L50 48.2 L64 49 L50 49.8 Z" fill="url(#sh'+u+')"/></g>'
-    +'<path d="M50 27 L50.9 49 L50 71 L49.1 49 Z" fill="url(#sv'+u+')"/>'
-    +'<path d="M28 49 L50 48.1 L72 49 L50 49.9 Z" fill="url(#sh'+u+')"/>'
-    +'<circle cx="50" cy="49" r="2.5" fill="#fff"/><circle cx="50" cy="49" r="1.2" fill="#fff"/>'
+    +'<circle cx="50" cy="49" r="27" fill="url(#gl'+u+')"/>'
+    +'<circle cx="50" cy="49" r="9" fill="url(#bl'+u+')"/>'
+    +'<g transform="rotate(45 50 49)" opacity=".5"><path d="M50 31 L50.7 49 L50 67 L49.3 49 Z" fill="url(#sv'+u+')"/><path d="M32 49 L50 48.3 L68 49 L50 49.7 Z" fill="url(#sh'+u+')"/></g>'
+    +'<path d="M50 12 L50.85 49 L50 86 L49.15 49 Z" fill="url(#sv'+u+')"/>'
+    +'<path d="M14 49 L50 48.15 L86 49 L50 49.85 Z" fill="url(#sh'+u+')"/>'
+    +'<path d="M50 17 L50.35 49 L50 81 L49.65 49 Z" fill="#fff" opacity=".85"/>'
+    +'<path d="M19 49 L50 48.6 L81 49 L50 49.4 Z" fill="#fff" opacity=".85"/>'
+    +'<circle cx="50" cy="49" r="3.2" fill="url(#bl'+u+')"/>'
+    +'<circle cx="50" cy="49" r="1.7" fill="#fff"/>'
     +'</g>'
     +'<circle cx="50" cy="50" r="46" fill="none" stroke="var(--cg)" stroke-width=".7"/>'
     +'<circle cx="50" cy="50" r="42.5" fill="none" stroke="var(--cg)" stroke-width=".3" stroke-dasharray="1.5 2.5" opacity=".7"/>'
     +'</svg>';
 }
-/* A hand-pressed celestial wax seal. An irregular wax disc — deterministic
-   pressure dents, an off-round contour — takes a crisp circular matrix
-   impression: a beaded heraldic border, a legend ring of engraved registry
-   text flanked by star separators, and a central ceremonial medallion (engraved
-   sunburst, tilted orbital rings, the Astralis star). Every relief element is
-   double-struck — incised dark + raised light under a fixed top-left light — for
-   genuine embossed depth. Gold throughout, drawn in the 100x100 box. */
+/* A polished scalloped registry medallion — a notary-style gold seal: a cogged
+   scalloped rim with a soft metallic bevel and gloss, an engraved legend
+   (OFFICIALLY / REGISTERED) around a bold ASTRALIS wordmark, a compass star and
+   a small divider. Deterministic, gold throughout, drawn in the 100x100 box. */
 function certSealSVG(){
-  const u=++_certUid, TAU=6.28318530718, Cs=Math.cos, Sin=Math.sin;
-  /* deterministic PRNG so the hand-pressed imperfections never jitter between renders */
-  let _s=1779033703;const rnd=()=>{_s=(_s*1103515245+12345)&0x7fffffff;return _s/0x7fffffff;};
-  /* Catmull-Rom -> cubic bezier through a closed point loop */
-  const smooth=(pts)=>{const n=pts.length;let d='M'+pts[0][0].toFixed(2)+','+pts[0][1].toFixed(2);
-    for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
-      d+='C'+(p1[0]+(p2[0]-p0[0])/6).toFixed(2)+','+(p1[1]+(p2[1]-p0[1])/6).toFixed(2)+' '+(p2[0]-(p3[0]-p1[0])/6).toFixed(2)+','+(p2[1]-(p3[1]-p1[1])/6).toFixed(2)+' '+p2[0].toFixed(2)+','+p2[1].toFixed(2);}
-    return d+'Z';};
-  /* irregular wax blob: soft harmonics + localized pressure marks [angle,width,depth]
-     (negative bites inward where the matrix pressed deep, positive squeezes wax out) */
-  const dents=[[0.5,0.42,-2.4],[2.45,0.55,-1.5],[3.95,0.34,-2.8],[5.3,0.48,-1.4],[1.5,0.7,1.5]];
-  const N=140, raw=[];
-  for(let k=0;k<N;k++){const a=k/N*TAU;
-    let r=45.6+Sin(a*2+0.7)*1.4+Sin(a*3+1.9)*0.85+Sin(a*5+0.4)*0.45+Sin(a*8+1.2)*0.24+(rnd()-0.5)*0.45;
-    for(const dn of dents){const da=Math.abs(((a-dn[0]+Math.PI)%TAU+TAU)%TAU-Math.PI);r+=Math.exp(-(da*da)/(dn[1]*dn[1]))*dn[2];}
-    raw.push([a,r]);}
-  const xy=(a,r)=>[50+Cs(a)*r,50+Sin(a)*r];
-  const outer=smooth(raw.map(p=>xy(p[0],p[1])));
-  /* beaded heraldic border ring (embossed: dark bead + light highlight) */
-  let beads='';for(let k=0;k<54;k++){const a=k/54*TAU;beads+='<circle cx="'+(50+Cs(a)*39).toFixed(2)+'" cy="'+(50+Sin(a)*39).toFixed(2)+'" r="1.05"/>';}
-  /* ceremonial sunburst (alternating long/short engraved rays) */
-  let rays='';for(let k=0;k<24;k++){const a=k/24*TAU-1.5708,w=0.052,ro=k%2?16.4:22.6,ri=9.9;
-    rays+='<path d="M'+(50+Cs(a-w)*ri).toFixed(2)+','+(50+Sin(a-w)*ri).toFixed(2)+' L'+(50+Cs(a)*ro).toFixed(2)+','+(50+Sin(a)*ro).toFixed(2)+' L'+(50+Cs(a+w)*ri).toFixed(2)+','+(50+Sin(a+w)*ri).toFixed(2)+'Z"/>';}
-  const star='M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z';
-  /* ring of tiny stars around the device */
-  let motes='';for(let k=0;k<8;k++){const a=k/8*TAU+0.39,x=50+Cs(a)*24.2,y=50+Sin(a)*24.2,sc=k%2?0.07:0.05;
-    motes+='<path transform="translate('+x.toFixed(2)+' '+y.toFixed(2)+') scale('+sc+') translate(-12 -12)" d="'+star+'"/>';}
-  /* struck-metal wear scratches */
-  let wear='';for(let k=0;k<9;k++){const a=rnd()*TAU,r=8+rnd()*30,x=50+Cs(a)*r,y=50+Sin(a)*r,a2=rnd()*TAU,len=2+rnd()*6;
-    wear+='<line x1="'+x.toFixed(1)+'" y1="'+y.toFixed(1)+'" x2="'+(x+Cs(a2)*len).toFixed(1)+'" y2="'+(y+Sin(a2)*len).toFixed(1)+'"/>';}
-  const offUL=s=>s.replace(/cx="([\d.]+)" cy="([\d.]+)"/g,(m,a,b)=>'cx="'+(+a-0.35).toFixed(2)+'" cy="'+(+b-0.42).toFixed(2)+'"');
-  const offM=s=>s.replace(/translate\((\d[\d.]*) (\d[\d.]*)\)/g,(m,a,b)=>'translate('+(+a-0.3).toFixed(2)+' '+(+b-0.35).toFixed(2)+')');
+  const u=++_certUid, TAU=6.28318530718, C=Math.cos, S=Math.sin;
+  const NSC=30;                                  /* scallop teeth */
+  let scR='',scG='';
+  for(let k=0;k<NSC;k++){const a=k/NSC*TAU-1.5708,x=50+C(a)*43.2,y=50+S(a)*43.2;
+    scR+='<circle cx="'+x.toFixed(2)+'" cy="'+y.toFixed(2)+'" r="4.7"/>';   /* dark bevel base */
+    scG+='<circle cx="'+x.toFixed(2)+'" cy="'+y.toFixed(2)+'" r="4.15"/>';  /* gold face */
+  }
+  const SP='M12 1.4l2 8L21.6 12l-7.6 2.6L12 22.6l-2-8L2.4 12l7.6-2.6z';     /* 4-point compass star */
+  const star=(cx,cy,sc,fill,op)=>'<path transform="translate('+cx+' '+cy+') scale('+sc+') translate(-12 -12)" d="'+SP+'" fill="'+fill+'"'+(op?' fill-opacity="'+op+'"':'')+'/>';
   const P=['<svg class="ct-sealsvg" viewBox="0 0 100 100">','<defs>'];
-  P.push('<radialGradient id="sm'+u+'" cx=".34" cy=".26" r=".95"><stop offset="0" stop-color="#FCEFC2"/><stop offset=".32" stop-color="#E9CC79"/><stop offset=".62" stop-color="#C99F4E"/><stop offset=".85" stop-color="#9C7836"/><stop offset="1" stop-color="#6B4D21"/></radialGradient>');
-  P.push('<radialGradient id="sf'+u+'" cx=".42" cy=".34" r=".74"><stop offset="0" stop-color="#DCB768"/><stop offset=".55" stop-color="#BE934A"/><stop offset="1" stop-color="#82602B"/></radialGradient>');
-  P.push('<linearGradient id="se'+u+'" x1=".1" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#FFF4CC"/><stop offset=".5" stop-color="#E6C277"/><stop offset="1" stop-color="#A87E36"/></linearGradient>');
-  P.push('<radialGradient id="md'+u+'" cx=".4" cy=".34" r=".72"><stop offset="0" stop-color="#C99F4E"/><stop offset=".7" stop-color="#956F30"/><stop offset="1" stop-color="#5E4318"/></radialGradient>');
-  P.push('<linearGradient id="rim'+u+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF7DC" stop-opacity=".95"/><stop offset=".5" stop-color="#E7CB7C" stop-opacity="0"/><stop offset="1" stop-color="#43300E" stop-opacity=".85"/></linearGradient>');
-  P.push('<radialGradient id="cg'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF6CE" stop-opacity=".8"/><stop offset="1" stop-color="#FFF6CE" stop-opacity="0"/></radialGradient>');
-  P.push('<radialGradient id="sh'+u+'" cx=".3" cy=".22" r=".55"><stop offset="0" stop-color="#FFFDF2" stop-opacity=".58"/><stop offset=".62" stop-color="#FFFDF2" stop-opacity="0"/></radialGradient>');
-  P.push('<radialGradient id="br'+u+'" cx=".68" cy=".77" r=".6"><stop offset=".38" stop-color="#241804" stop-opacity="0"/><stop offset="1" stop-color="#241804" stop-opacity=".42"/></radialGradient>');
-  P.push('<radialGradient id="sd'+u+'" cx=".5" cy=".5" r=".5"><stop offset=".58" stop-color="#3A2A0A" stop-opacity="0"/><stop offset=".88" stop-color="#3A2A0A" stop-opacity=".26"/><stop offset="1" stop-color="#241804" stop-opacity=".5"/></radialGradient>');
-  P.push('<path id="at'+u+'" d="M17.3,50 A32.7,32.7 0 0 1 82.7,50" fill="none"/>');
-  P.push('<path id="ab'+u+'" d="M18.4,50 A31.6,31.6 0 0 0 81.6,50" fill="none"/>');
-  P.push('<clipPath id="cp'+u+'"><path d="'+outer+'"/></clipPath>');
+  P.push('<radialGradient id="sg'+u+'" gradientUnits="userSpaceOnUse" cx="40" cy="33" r="64"><stop offset="0" stop-color="#FBE7AC"/><stop offset=".4" stop-color="#ECC868"/><stop offset=".72" stop-color="#CE9F42"/><stop offset="1" stop-color="#956C28"/></radialGradient>');
+  P.push('<radialGradient id="sgd'+u+'" gradientUnits="userSpaceOnUse" cx="40" cy="33" r="64"><stop offset="0" stop-color="#B68C3B"/><stop offset="1" stop-color="#664718"/></radialGradient>');
+  P.push('<radialGradient id="sgf'+u+'" gradientUnits="userSpaceOnUse" cx="42" cy="36" r="46"><stop offset="0" stop-color="#F6DC97"/><stop offset=".7" stop-color="#DCB257"/><stop offset="1" stop-color="#BE9038"/></radialGradient>');
+  P.push('<radialGradient id="sgl'+u+'" cx=".36" cy=".26" r=".5"><stop offset="0" stop-color="#FFFDF4" stop-opacity=".8"/><stop offset="1" stop-color="#FFFDF4" stop-opacity="0"/></radialGradient>');
+  P.push('<radialGradient id="svn'+u+'" cx=".5" cy=".5" r=".5"><stop offset=".58" stop-color="#342306" stop-opacity="0"/><stop offset=".9" stop-color="#342306" stop-opacity=".22"/><stop offset="1" stop-color="#241804" stop-opacity=".45"/></radialGradient>');
+  P.push('<path id="sot'+u+'" d="M23,50.5 A27,27 0 0 1 77,50.5" fill="none"/>');
+  P.push('<path id="sob'+u+'" d="M24,50 A26,26 0 0 0 76,50" fill="none"/>');
   P.push('</defs>');
-  /* cast shadow of the pressed wax (offset -> raised hand-stamped depth) */
-  P.push('<path d="'+outer+'" transform="translate(1.5 2)" fill="#1F1503" opacity=".5"/>');
-  /* main wax body + clipped top-left sheen, bottom-right shade and wear */
-  P.push('<path d="'+outer+'" fill="url(#sm'+u+')" stroke="#4A340D" stroke-width=".5"/>');
-  P.push('<g clip-path="url(#cp'+u+')">');
-  P.push('<rect x="0" y="0" width="100" height="100" fill="url(#sh'+u+')"/>');
-  P.push('<rect x="0" y="0" width="100" height="100" fill="url(#br'+u+')"/>');
-  P.push('<g stroke="#FFF4CC" stroke-opacity=".15" stroke-width=".35" stroke-linecap="round">'+wear+'</g>');
+  /* soft cast shadow */
+  P.push('<g transform="translate(1 1.5)" fill="#1c1303" opacity=".4"><circle cx="50" cy="50" r="42.5"/>'+scR+'</g>');
+  /* dark bevel base (peeks at the notches -> defines each scallop) */
+  P.push('<g fill="url(#sgd'+u+')">'+scR+'<circle cx="50" cy="50" r="42.8"/></g>');
+  /* gold body */
+  P.push('<g fill="url(#sg'+u+')">'+scG+'<circle cx="50" cy="50" r="42"/></g>');
+  /* glossy top-left highlight */
+  P.push('<ellipse cx="41" cy="33" rx="31" ry="25" fill="url(#sgl'+u+')"/>');
+  /* raised inner face + framing rings */
+  P.push('<circle cx="50" cy="50" r="36.4" fill="url(#sgf'+u+')"/>');
+  P.push('<circle cx="50" cy="50" r="36.4" fill="none" stroke="#6E4D1B" stroke-opacity=".5" stroke-width=".8"/>');
+  P.push('<circle cx="49.6" cy="49.5" r="35.7" fill="none" stroke="#FFF0BE" stroke-opacity=".45" stroke-width=".5"/>');
+  P.push('<circle cx="50" cy="50" r="31" fill="none" stroke="#7A5520" stroke-opacity=".4" stroke-width=".55"/>');
+  /* engraved legend (light highlight under dark incision) */
+  P.push('<g font-family="Georgia,\'Times New Roman\',serif" font-weight="600">');
+  P.push('<text font-size="6.1" letter-spacing="2.1" fill="#FFF0C2" fill-opacity=".5" transform="translate(-.4 -.45)"><textPath href="#sot'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY</textPath></text>');
+  P.push('<text font-size="6.1" letter-spacing="2.1" fill="#523711"><textPath href="#sot'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY</textPath></text>');
+  P.push('<text font-size="6.1" letter-spacing="1.9" fill="#FFF0C2" fill-opacity=".5" transform="translate(-.4 -.45)"><textPath href="#sob'+u+'" startOffset="50%" text-anchor="middle">REGISTERED</textPath></text>');
+  P.push('<text font-size="6.1" letter-spacing="1.9" fill="#523711"><textPath href="#sob'+u+'" startOffset="50%" text-anchor="middle">REGISTERED</textPath></text>');
   P.push('</g>');
-  /* bevelled rim light on the wax edge */
-  P.push('<path d="'+outer+'" fill="none" stroke="url(#rim'+u+')" stroke-width="1.6"/>');
-  /* recessed legend table with a beaded border */
-  P.push('<circle cx="50" cy="50" r="37.4" fill="url(#sf'+u+')"/>');
-  P.push('<circle cx="50" cy="50" r="37.4" fill="none" stroke="#3A2A0A" stroke-opacity=".4" stroke-width=".7"/>');
-  P.push('<circle cx="49.6" cy="49.5" r="36.8" fill="none" stroke="#FFF3CC" stroke-opacity=".3" stroke-width=".5"/>');
-  P.push('<g fill="#473210" fill-opacity=".82">'+beads+'</g>');
-  P.push('<g fill="#FFF3CC" fill-opacity=".42">'+offUL(beads)+'</g>');
-  /* engraved legend text (light highlight under dark incision) */
-  P.push('<circle cx="50" cy="50" r="36" fill="none" stroke="#3A2A0A" stroke-opacity=".4" stroke-width=".5"/>');
-  P.push('<g font-family="Georgia,\'Times New Roman\',serif" font-weight="700">');
-  P.push('<text font-size="4.4" letter-spacing=".7" fill="#FFF4CC" fill-opacity=".55" transform="translate(-.4 -.45)"><textPath href="#at'+u+'" startOffset="50%" text-anchor="middle">ASTRALIS · CELESTIAL REGISTRY</textPath></text>');
-  P.push('<text font-size="4.4" letter-spacing=".7" fill="#34250A"><textPath href="#at'+u+'" startOffset="50%" text-anchor="middle">ASTRALIS · CELESTIAL REGISTRY</textPath></text>');
-  P.push('<text font-size="3.8" letter-spacing=".9" fill="#FFF4CC" fill-opacity=".55" transform="translate(-.4 -.45)"><textPath href="#ab'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY REGISTERED · AUSTRALIA</textPath></text>');
-  P.push('<text font-size="3.8" letter-spacing=".9" fill="#34250A"><textPath href="#ab'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY REGISTERED · AUSTRALIA</textPath></text>');
-  P.push('</g>');
-  /* star separators flanking the legend at 3 and 9 o'clock */
-  for(const sx of ['17.4','82.6']){P.push('<path transform="translate('+sx+' 49.6) scale(.07) translate(-12 -12)" d="'+star+'" fill="#FFF3CC" fill-opacity=".4"/><path transform="translate('+sx+' 50) scale(.07) translate(-12 -12)" d="'+star+'" fill="#34250A" fill-opacity=".75"/>');}
-  /* inner fillet (raised hairline) + recessed central field */
-  P.push('<circle cx="50" cy="50" r="28.4" fill="none" stroke="#3A2A0A" stroke-opacity=".5" stroke-width=".6"/>');
-  P.push('<circle cx="49.6" cy="49.5" r="27.9" fill="none" stroke="#FFF3CC" stroke-opacity=".32" stroke-width=".45"/>');
-  P.push('<circle cx="50" cy="50" r="28" fill="url(#sf'+u+')"/>');
-  P.push('<circle cx="50" cy="50" r="20" fill="url(#cg'+u+')"/>');
-  /* engraved sunburst behind the medallion */
-  P.push('<g fill="url(#se'+u+')" stroke="#3E2C0E" stroke-opacity=".4" stroke-width=".2">'+rays+'</g>');
-  /* ring of tiny stars (embossed) */
-  P.push('<g fill="#34250A" fill-opacity=".6">'+motes+'</g>');
-  P.push('<g fill="#FFF3CC" fill-opacity=".4">'+offM(motes)+'</g>');
-  /* tilted orbital rings — celestial motif */
-  P.push('<g fill="none" stroke-width=".55"><ellipse cx="50" cy="50" rx="17.4" ry="6.4" transform="rotate(-24 50 50)" stroke="#34250A" stroke-opacity=".5"/><ellipse cx="49.6" cy="49.4" rx="17.4" ry="6.4" transform="rotate(-24 49.6 49.4)" stroke="#FFF3CC" stroke-opacity=".24"/><ellipse cx="50" cy="50" rx="15.6" ry="5.8" transform="rotate(34 50 50)" stroke="#34250A" stroke-opacity=".5"/></g>');
-  P.push('<circle cx="'+(50+Cs(-0.42)*17.4).toFixed(2)+'" cy="'+(50+Sin(-0.42)*6.4).toFixed(2)+'" r="1.05" fill="#5A3F12"/>');
-  /* central raised medallion (recessed dark disc so the bright star reads strongly
-     even when the seal is shrunk to certificate size) + Astralis star */
-  P.push('<circle cx="50" cy="50" r="10.6" fill="url(#md'+u+')" stroke="#241804" stroke-opacity=".6" stroke-width=".6"/>');
-  P.push('<circle cx="50" cy="50" r="10.6" fill="none" stroke="#FFF3CC" stroke-opacity=".28" stroke-width=".4" stroke-dasharray="14 26" transform="rotate(-40 50 50)"/>');
-  P.push('<path transform="translate(50.5 50.7) scale(.7) translate(-12 -12)" d="'+star+'" fill="#1E1404" fill-opacity=".6"/>');
-  P.push('<path transform="translate(49.65 49.45) scale(.7) translate(-12 -12)" d="'+star+'" fill="url(#se'+u+')" stroke="#241804" stroke-opacity=".55" stroke-width=".35"/>');
-  P.push('<path transform="translate(49.65 49.45) scale(.34) translate(-12 -12)" d="'+star+'" fill="#FFF8E0" fill-opacity=".7"/>');
-  P.push('<circle cx="49.65" cy="49.4" r="1.4" fill="#FFFCF0"/>');
-  /* overall inner shadow seats the relief, then a crisp top-left edge glint */
-  P.push('<path d="'+outer+'" fill="url(#sd'+u+')"/>');
-  P.push('<path d="M26,30 A36,36 0 0 1 60,14" fill="none" stroke="#FFFBEC" stroke-opacity=".5" stroke-width="1" stroke-linecap="round"/>');
+  /* side diamonds capping the legend at 3 & 9 o'clock */
+  P.push(star(19.5,50,0.13,'#523711')+star(80.5,50,0.13,'#523711'));
+  /* compass star above the wordmark (embossed) */
+  P.push(star(50,38.7,0.46,'#3C2908',0.45)+star(49.7,38.4,0.46,'url(#sg'+u+')')+star(49.7,38.4,0.2,'#FFF3CC',0.8));
+  /* ASTRALIS wordmark — debossed dark on gold */
+  P.push('<text x="49.6" y="55.4" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-weight="700" font-size="12.6" letter-spacing="1" fill="#FFF1C6" fill-opacity=".5" transform="translate(0 -.5)">ASTRALIS</text>');
+  P.push('<text x="50" y="55.4" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-weight="700" font-size="12.6" letter-spacing="1" fill="#4E360F">ASTRALIS</text>');
+  /* divider below the wordmark */
+  P.push('<g stroke="#523711" stroke-opacity=".7" stroke-width=".7" stroke-linecap="round"><line x1="37.5" y1="61.4" x2="46" y2="61.4"/><line x1="54" y1="61.4" x2="62.5" y2="61.4"/></g>');
+  P.push('<path d="M50 59.5l1.5 1.9-1.5 1.9-1.5-1.9z" fill="#523711"/>');
+  /* inner shadow vignette seats the relief */
+  P.push('<circle cx="50" cy="50" r="42.4" fill="url(#svn'+u+')"/>');
   P.push('</svg>');
   return P.join('');
 }
