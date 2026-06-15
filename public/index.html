@@ -130,12 +130,8 @@ nav.scrolled{background:rgba(5,7,15,.78);backdrop-filter:blur(18px);-webkit-back
 .ct-pres{font-size:1.7cqw;letter-spacing:.2em;color:var(--cmut);text-transform:uppercase;margin-top:.8cqw}
 .ct-map{position:relative;width:29cqw;margin:1.8cqw 0 .6cqw}
 .ct-mapsvg{display:block;width:100%}
-.ct-seal{position:absolute;right:-12cqw;bottom:-1.6cqw;width:15.5cqw;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;transform:rotate(-9deg);
-  background:radial-gradient(circle at 35% 28%,#F8E7B4,#D2A957 55%,#9B752C);box-shadow:0 2cqw 5cqw rgba(0,0,0,.35)}
-.ct-seal::before{content:'';position:absolute;inset:1.4cqw;border:1px solid rgba(93,68,19,.55);border-radius:50%}
-.ct-seal-in{display:flex;flex-direction:column;align-items:center;line-height:1.55;color:var(--sealtx)}
-.ct-seal-in small{font-size:1.35cqw;letter-spacing:.28em;text-indent:.28em;font-weight:600;text-transform:uppercase}
-.ct-seal-in span{font-family:var(--display);font-size:2.4cqw;letter-spacing:.2em;text-indent:.2em;font-weight:600}
+.ct-seal{position:absolute;right:-12cqw;bottom:-2cqw;width:17cqw;aspect-ratio:1;transform:rotate(-9deg);filter:drop-shadow(0 1.4cqw 2.6cqw rgba(0,0,0,.5))}
+.ct-sealsvg{display:block;width:100%}
 .ct-data{width:100%;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--lnc);margin-top:1.4cqw;text-align:left}
 .ct-cell{display:flex;align-items:center;gap:1.6cqw;padding:1.1cqw 1cqw 1.1cqw 1.3cqw;border-bottom:1px solid var(--lnc)}
 .ct-cell:nth-child(odd){border-right:1px solid var(--lnc)}
@@ -1269,28 +1265,87 @@ const CERT_ICONS={
  mag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9 4l1.4 4L14 9l-3.6 1L9 14l-1.4-4L4 9l3.6-1zM17 13l.9 2.6L20.5 16l-2.6.9L17 19.5l-.9-2.6L13.5 16l2.6-.9z"/></svg>',
  cls:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="12" cy="12" r="8"/><path d="M12 7l1.2 3.6L17 12l-3.8 1.4L12 17l-1.2-3.6L7 12l3.8-1.4z"/></svg>'
 };
+let _certUid=0;
+/* A realistic telescope view: deep-space field with faint nebula, scattered
+   stars and a few brighter neighbours, around a luminous central star with a
+   soft glow and 8-point diffraction spikes. Deterministic per seed. */
 function starMapSVG(seed){
-  let dots='',lines='';const cp=[];
-  for(let i=0;i<48;i++){
-    const a=h1(i,seed)*6.283,r=Math.sqrt(h1(i,seed+11))*41;
-    const x=50+Math.cos(a)*r,y=50+Math.sin(a)*r;
-    if(i<6)cp.push([x,y]);
-    dots+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+(.35+h1(i,seed+22)*.85).toFixed(2)+'" fill="var(--cg2)" opacity="'+(.3+h1(i,seed+33)*.55).toFixed(2)+'"/>';
+  const u=++_certUid;
+  let field='',near='';
+  for(let i=0;i<78;i++){
+    const a=h1(i,seed)*6.283,rr=Math.sqrt(h1(i,seed+11))*44;
+    const x=(50+Math.cos(a)*rr).toFixed(1),y=(50+Math.sin(a)*rr).toFixed(1);
+    const sz=(0.16+Math.pow(h1(i,seed+22),2.2)*0.95).toFixed(2);
+    const op=(0.22+h1(i,seed+33)*0.6).toFixed(2);
+    const cc=h1(i,seed+44),col=cc<0.68?'#ffffff':cc<0.85?'#FFEAC4':'#D2E2FF';
+    field+='<circle cx="'+x+'" cy="'+y+'" r="'+sz+'" fill="'+col+'" opacity="'+op+'"/>';
   }
-  for(let i=0;i<cp.length-1;i++)lines+='<line x1="'+cp[i][0].toFixed(1)+'" y1="'+cp[i][1].toFixed(1)+'" x2="'+cp[i+1][0].toFixed(1)+'" y2="'+cp[i+1][1].toFixed(1)+'" stroke="var(--cg)" stroke-width=".25" opacity=".5"/>';
+  for(let i=0;i<5;i++){
+    const a=h1(i+200,seed)*6.283,rr=15+h1(i+200,seed+11)*26;
+    const x=(50+Math.cos(a)*rr).toFixed(1),y=(50+Math.sin(a)*rr).toFixed(1);
+    near+='<circle cx="'+x+'" cy="'+y+'" r="4.4" fill="url(#ns'+u+')"/><circle cx="'+x+'" cy="'+y+'" r=".75" fill="#fff" opacity=".92"/>';
+  }
   return '<svg class="ct-mapsvg" viewBox="0 0 100 100">'
-    +'<defs><radialGradient id="mg'+seed+'" cx=".5" cy=".42" r=".62"><stop offset="0" stop-color="var(--map1)"/><stop offset="1" stop-color="var(--map2)"/></radialGradient></defs>'
-    +'<circle cx="50" cy="50" r="46" fill="url(#mg'+seed+')"/>'
+    +'<defs>'
+    +'<radialGradient id="bg'+u+'" cx=".5" cy=".44" r=".64"><stop offset="0" stop-color="var(--map1)"/><stop offset="1" stop-color="var(--map2)"/></radialGradient>'
+    +'<radialGradient id="na'+u+'" cx=".34" cy=".32" r=".5"><stop offset="0" stop-color="var(--cg)" stop-opacity=".15"/><stop offset="1" stop-color="var(--cg)" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="nb'+u+'" cx=".72" cy=".7" r=".48"><stop offset="0" stop-color="#8E7BDC" stop-opacity=".16"/><stop offset="1" stop-color="#8E7BDC" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="ns'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".8"/><stop offset=".5" stop-color="#fff" stop-opacity=".16"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="gl'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff"/><stop offset=".16" stop-color="#FFF6DC" stop-opacity=".9"/><stop offset=".46" stop-color="var(--cg2)" stop-opacity=".4"/><stop offset="1" stop-color="var(--cg2)" stop-opacity="0"/></radialGradient>'
+    +'<linearGradient id="sv'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+    +'<linearGradient id="sh'+u+'" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+    +'<clipPath id="cp'+u+'"><circle cx="50" cy="50" r="45.6"/></clipPath>'
+    +'</defs>'
+    +'<circle cx="50" cy="50" r="46" fill="url(#bg'+u+')"/>'
+    +'<g clip-path="url(#cp'+u+')">'
+    +'<rect width="100" height="100" fill="url(#na'+u+')"/><rect width="100" height="100" fill="url(#nb'+u+')"/>'
+    +field+near
+    +'<circle cx="50" cy="49" r="24" fill="url(#gl'+u+')"/>'
+    +'<g transform="rotate(45 50 49)" opacity=".45"><path d="M50 35 L50.8 49 L50 63 L49.2 49 Z" fill="url(#sv'+u+')"/><path d="M36 49 L50 48.2 L64 49 L50 49.8 Z" fill="url(#sh'+u+')"/></g>'
+    +'<path d="M50 27 L50.9 49 L50 71 L49.1 49 Z" fill="url(#sv'+u+')"/>'
+    +'<path d="M28 49 L50 48.1 L72 49 L50 49.9 Z" fill="url(#sh'+u+')"/>'
+    +'<circle cx="50" cy="49" r="2.5" fill="#fff"/><circle cx="50" cy="49" r="1.2" fill="#fff"/>'
+    +'</g>'
     +'<circle cx="50" cy="50" r="46" fill="none" stroke="var(--cg)" stroke-width=".7"/>'
     +'<circle cx="50" cy="50" r="42.5" fill="none" stroke="var(--cg)" stroke-width=".3" stroke-dasharray="1.5 2.5" opacity=".7"/>'
-    +lines+dots
-    +'<g stroke="var(--cg2)" stroke-linecap="round">'
-    +'<line x1="50" y1="26" x2="50" y2="74" stroke-width=".8"/>'
-    +'<line x1="26" y1="50" x2="74" y2="50" stroke-width=".8"/>'
-    +'<line x1="37" y1="37" x2="63" y2="63" stroke-width=".45" opacity=".6"/>'
-    +'<line x1="63" y1="37" x2="37" y2="63" stroke-width=".45" opacity=".6"/></g>'
-    +'<circle cx="50" cy="50" r="7" fill="var(--cg2)" opacity=".25"/>'
-    +'<circle cx="50" cy="50" r="2.4" fill="#fff"/></svg>';
+    +'</svg>';
+}
+/* An embossed official certification seal: reeded metal rim, guilloché security
+   ring, engraved curved registry text, the Astralis star emblem and micro-stars,
+   with a domed metallic gradient and an inner emboss shadow for depth. */
+function certSealSVG(){
+  const u=++_certUid;
+  let reeds='',guil='',mini='';
+  for(let k=0;k<72;k++){const a=k/72*6.283,c=Math.cos(a),s=Math.sin(a);
+    reeds+='<line x1="'+(50+c*45).toFixed(2)+'" y1="'+(50+s*45).toFixed(2)+'" x2="'+(50+c*47.4).toFixed(2)+'" y2="'+(50+s*47.4).toFixed(2)+'"/>';}
+  for(let k=0;k<30;k++){const a=k/30*6.283;guil+='<circle cx="'+(50+Math.cos(a)*23.5).toFixed(2)+'" cy="'+(50+Math.sin(a)*23.5).toFixed(2)+'" r="6.2"/>';}
+  for(let k=0;k<8;k++){const a=k/8*6.283-1.57,x=(50+Math.cos(a)*15.5).toFixed(1),y=(50+Math.sin(a)*15.5).toFixed(1);
+    mini+='<path transform="translate('+x+' '+y+') scale(.12) translate(-12 -12)" d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" fill="#6B4E1C" opacity=".5"/>';}
+  return '<svg class="ct-sealsvg" viewBox="0 0 100 100">'
+    +'<defs>'
+    +'<radialGradient id="sm'+u+'" cx=".36" cy=".3" r=".82"><stop offset="0" stop-color="#FCEFC6"/><stop offset=".42" stop-color="#E7CB7C"/><stop offset=".76" stop-color="#C49C4C"/><stop offset="1" stop-color="#8C6A2E"/></radialGradient>'
+    +'<linearGradient id="se'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FCEFC6"/><stop offset="1" stop-color="#B68F3C"/></linearGradient>'
+    +'<radialGradient id="sd'+u+'" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="#5E430F" stop-opacity="0"/><stop offset=".9" stop-color="#5E430F" stop-opacity=".3"/><stop offset="1" stop-color="#5E430F" stop-opacity="0"/></radialGradient>'
+    +'<path id="at'+u+'" d="M15,50 A35,35 0 0 1 85,50" fill="none"/>'
+    +'<path id="ab'+u+'" d="M16,50 A34,34 0 0 0 84,50" fill="none"/>'
+    +'</defs>'
+    +'<circle cx="50" cy="50" r="48" fill="url(#sm'+u+')"/>'
+    +'<g stroke="#7A5A22" stroke-opacity=".55" stroke-width=".5">'+reeds+'</g>'
+    +'<circle cx="50" cy="50" r="44.4" fill="none" stroke="#5E430F" stroke-opacity=".5" stroke-width=".5"/>'
+    +'<circle cx="50" cy="50" r="43.2" fill="none" stroke="#FCEFC6" stroke-opacity=".4" stroke-width=".4"/>'
+    +'<g fill="none" stroke="#8A6A2E" stroke-opacity=".4" stroke-width=".28">'+guil+'</g>'
+    +'<circle cx="50" cy="50" r="30.5" fill="none" stroke="#5E430F" stroke-opacity=".5" stroke-width=".5"/>'
+    +'<circle cx="50" cy="50" r="29.4" fill="none" stroke="#FCEFC6" stroke-opacity=".4" stroke-width=".35"/>'
+    +'<g font-family="Georgia,\'Times New Roman\',serif" font-weight="600">'
+    +'<text font-size="4.7" letter-spacing="1" fill="#5E430F"><textPath href="#at'+u+'" startOffset="50%" text-anchor="middle">ASTRALIS CELESTIAL REGISTRY</textPath></text>'
+    +'<text font-size="4.2" letter-spacing="1.1" fill="#5E430F"><textPath href="#ab'+u+'" startOffset="50%" text-anchor="middle">OFFICIALLY REGISTERED · AUSTRALIA</textPath></text>'
+    +'</g>'
+    +mini
+    +'<path transform="translate(50 49.5) scale(1.15) translate(-12 -12)" d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" fill="url(#se'+u+')" stroke="#5E430F" stroke-opacity=".45" stroke-width=".5"/>'
+    +'<circle cx="50" cy="49.5" r="1.25" fill="#FFF7DC"/>'
+    +'<path d="M22,33 A38,38 0 0 1 66,15" fill="none" stroke="#FFF8E0" stroke-opacity=".55" stroke-width="1.1" stroke-linecap="round"/>'
+    +'<circle cx="50" cy="50" r="48" fill="url(#sd'+u+')"/>'
+    +'</svg>';
 }
 function certCell(ic,k,cls,v){return '<div class="ct-cell">'+CERT_ICONS[ic]+'<div><div class="k">'+k+'</div><div class="v '+cls+'">'+v+'</div></div></div>';}
 function certGalaxyTexture(ivory){
@@ -1350,7 +1405,7 @@ function certTemplate(d){
    +'<div><div class="ct-msg c-msg">\u201C'+d.msg+'\u201D</div>'
    +'<div class="ct-pres">Presented to <span class="c-recip">'+d.recip+'</span> \u00B7 <span class="c-occ">'+d.occ+'</span></div></div>'
    +'<div class="ct-map">'+starMapSVG(d.seed)
-   +'<div class="ct-seal"><div class="ct-seal-in"><small>Officially</small><span>ASTRALIS</span><small>Registered</small></div></div></div>'
+   +'<div class="ct-seal">'+certSealSVG()+'</div></div>'
    +'<div class="ct-data">'
    +certCell('ra','Right ascension','c-ra',d.ra)
    +certCell('cons','Constellation','c-cons',d.cons)
