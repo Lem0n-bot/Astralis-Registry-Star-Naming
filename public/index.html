@@ -2106,26 +2106,32 @@ setInterval(()=>{
   $('#rb-timer').textContent=`${Math.floor(d/60)}:${String(Math.floor(d)%60).padStart(2,'0')}`;
 },1000);
 
-/* ---------- explorer open/close + warp ---------- */
-function openExplorer(){
+/* ---------- explorer open/close ---------- */
+function enterExplorer(launchZoom){
   const ex=$('#explorer');
   ex.classList.add('open');
   requestAnimationFrame(()=>ex.classList.add('visible'));
   document.body.style.overflow='hidden';
   if(!EXP.inited)buildGalaxy();
   const E=EXP;
-  $('#detail').classList.remove('on');
-  E.target.set(0,0,0);E.sph={r:reduceMotion?340:900,theta:.6,phi:1.15};
-  if(reduceMotion){E.phase='explore';}
-  else{
-    E.phase='warp';E.warpT0=performance.now();
-    const wt=$('#warpText');wt.hidden=false;
-    wt.innerHTML='<div>Entering Astralis…</div>';
+  $('#detail').classList.remove('on');E.target.set(0,0,0);$('#warpText').hidden=true;
+  if(launchZoom){
+    /* smooth camera zoom into the galaxy — just a dolly-in, like scrolling */
+    E.sph={r:900,theta:.6,phi:1.15};E.phase='arrive';$('#expHint').style.opacity=0;
+    startTween(new THREE.Vector3(0,0,0),340,1700,()=>{E.phase='explore';$('#expHint').style.opacity=1;EXP._launching=false;});
+  }else{
+    E.sph={r:340,theta:.6,phi:1.15};E.phase='explore';EXP._launching=false;
   }
   if(!E.raf)loop();
   /* auto-start the soothing ambience (we're inside the launch click, so the
      browser allows audio); the Ambience button still lets them switch it off */
   setAmbience(true);
+}
+/* public entry: every explorer launch smoothly zooms the camera into the galaxy */
+function openExplorer(){
+  if(EXP._launching)return;
+  EXP._launching=true;
+  enterExplorer(true);
 }
 function closeExplorer(){
   const ex=$('#explorer');
@@ -2214,9 +2220,16 @@ function buildAmbience(){
 }
 function setAmbience(on){
   const a=buildAmbience();
-  a.on=on;a.ctx.resume();
-  /* quieter master and a long, soft fade so it eases in rather than arriving */
-  a.gain.gain.linearRampToValueAtTime(on?0.3:0,a.ctx.currentTime+(on?3.0:0.9));
+  a.on=on;
+  if(on)a.ctx.resume();
+  /* cancel any in-flight ramp and anchor the current value, otherwise a fade-out
+     started mid fade-in never actually reaches 0 (the sound keeps playing) */
+  const g=a.gain.gain,now=a.ctx.currentTime;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(g.value,now);
+  g.linearRampToValueAtTime(on?0.3:0,now+(on?3.0:0.7));
+  /* fully silence the engine once the fade-out completes */
+  if(!on)setTimeout(()=>{if(!a.on){try{a.ctx.suspend();}catch(_){}}},900);
   const b=$('#soundBtn');
   b.textContent=on?'♪ Ambience on':'♪ Ambience off';
   b.setAttribute('aria-pressed',on);
