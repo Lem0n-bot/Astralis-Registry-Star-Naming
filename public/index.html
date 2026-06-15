@@ -1735,7 +1735,7 @@ function buildGalaxy(){
       p[i*3]=Math.cos(a)*r+(Math.random()-.5)*18;p[i*3+1]=(Math.random()-.5)*16*(1-t*.5);p[i*3+2]=Math.sin(a)*r+(Math.random()-.5)*18;
     }
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
-    const m=new THREE.PointsMaterial({size:1.1,map:texSoft,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xaebcdc});
+    const m=new THREE.PointsMaterial({size:1.5,map:texSoft,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xc8d4f2});
     E.detailLayer=new THREE.Points(g,m);E.scene.add(E.detailLayer);
   }
 
@@ -2439,7 +2439,7 @@ function loop(){
     m.size=E.baseSizes[k]*(0.35+0.65*sizeFade);
   });
   if(E.coreSprite)E.coreSprite.material.opacity=THREE.MathUtils.clamp((z-30)/220,0.1,0.95);
-  if(E.detailLayer)E.detailLayer.material.opacity=0.26+0.22*THREE.MathUtils.clamp((220-z)/200,0,1);   /* always visible, brighter up close */
+  if(E.detailLayer)E.detailLayer.material.opacity=0.48+0.22*THREE.MathUtils.clamp((220-z)/200,0,1);   /* clearly visible even zoomed out, brighter up close */
   const lop=THREE.MathUtils.clamp((650-z)/240,0,1)*THREE.MathUtils.clamp((z-34)/55,0,1);
   E.labels.forEach(l=>l.material.opacity=lop);
   /* Earth marker keeps a readable, gently pulsing presence at every zoom */
