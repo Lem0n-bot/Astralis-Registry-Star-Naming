@@ -482,35 +482,35 @@ footer a:hover{color:var(--gold)}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.15s!important;scroll-behavior:auto!important}
 }
 
-/* ============ PREMIUM HEADING GLOW (cursor-tracking, desktop only) ============ */
-/* A soft radial light follows the cursor across a heading and gently brightens
-   the letters under it (screen blend over the gold text). Desktop-only and
-   motion-safe via media queries; text stays fully readable underneath. */
+/* ============ PREMIUM HEADING EDGE-LIGHT (cursor-tracking, desktop only) ============ */
+/* A duplicated-text overlay rendered as a hollow OUTLINE (text-stroke, no fill)
+   with a soft layered bloom. A radial mask reveals only the outlines near the
+   cursor, so as you move, the edges/silhouette of each letter catch the light
+   like illuminated metal. Colour comes from each heading's own text family:
+   --edge-c = stroke colour, --edge-s = bloom colour (pearl default; gold set in
+   JS for warm headings, and on <em> accents below). Text stays fully readable. */
 @media (hover:hover) and (pointer:fine){
-  .glow-title{position:relative;--gx:50%;--gy:50%;transition:text-shadow .5s ease}
-  /* a duplicated-text overlay clipped to the glyphs: a gold spotlight that
-     lights only the letters under the cursor and tracks it */
-  .glow-spot{
+  .glow-title{position:relative;--gx:50%;--gy:50%;
+    --edge-c:rgba(238,243,255,.96);--edge-s:rgba(214,224,250,.7);
+    transition:text-shadow .5s ease}
+  .glow-edge{
     position:absolute;inset:0;z-index:2;pointer-events:none;user-select:none;
-    background:radial-gradient(circle 1.6em at var(--gx) var(--gy),
-       rgba(255,245,214,1),rgba(246,221,150,.6) 38%,transparent 66%);
-    -webkit-background-clip:text;background-clip:text;
     -webkit-text-fill-color:transparent;color:transparent;
-    opacity:0;transition:opacity .35s ease;will-change:opacity;
+    -webkit-text-stroke:.9px var(--edge-c);
+    text-shadow:0 0 5px var(--edge-s),0 0 11px var(--edge-s);
+    -webkit-mask-image:radial-gradient(circle 2.4em at var(--gx) var(--gy),#000 10%,rgba(0,0,0,.5) 44%,transparent 70%);
+            mask-image:radial-gradient(circle 2.4em at var(--gx) var(--gy),#000 10%,rgba(0,0,0,.5) 44%,transparent 70%);
+    opacity:0;transition:opacity .45s ease;will-change:opacity;
   }
-  .glow-spot em{background:none !important;-webkit-text-fill-color:transparent;color:transparent}
-  .glow-title:hover .glow-spot{opacity:1}
-  .glow-title:hover{text-shadow:0 0 22px rgba(224,189,116,.18)}
-  /* warm champagne-gold spotlight for light backgrounds */
-  .glow-title.glow-light .glow-spot{
-    background:radial-gradient(circle 1.6em at var(--gx) var(--gy),
-       rgba(255,242,214,1),rgba(214,178,108,.62) 38%,transparent 66%);
-  }
+  /* gold accents (<em>) always shimmer warm gold, whatever the parent family */
+  .glow-edge em{background:none !important;
+    -webkit-text-stroke-color:rgba(248,226,158,.96);
+    text-shadow:0 0 5px rgba(234,196,124,.7),0 0 11px rgba(234,196,124,.5)}
+  .glow-title:hover .glow-edge{opacity:1}
   /* certificate titles: champagne sheen on the light/ivory cert surfaces */
   .cert .ct-name,.cert .ct-title{transition:text-shadow .5s ease,filter .5s ease}
-  .cert .ct-name:hover,.cert .ct-title:hover{filter:brightness(1.12);text-shadow:0 0 .55em rgba(201,162,92,.45)}
+  .cert .ct-name:hover,.cert .ct-title:hover{filter:brightness(1.1);text-shadow:0 0 .5em rgba(201,162,92,.4)}
 }
-@media (prefers-reduced-motion:reduce){.glow-title::before{display:none}}
 </style>
 </head>
 <body>
@@ -1166,13 +1166,23 @@ $$('.q').forEach(q=>{
   });
 });
 
-/* ---------- premium cursor-tracking heading glow (desktop, motion-safe) ---------- */
+/* ---------- premium heading edge-light (cursor-tracking outline glow, desktop only) ---------- */
 (function(){
   if(!matchMedia('(hover:hover) and (pointer:fine)').matches)return;   /* desktop pointers only */
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   function attach(el){
     if(el.dataset.glow)return;el.dataset.glow='1';
     el.classList.add('glow-title');
+    /* edge-light colour from the heading's own text colour family */
+    const c=(getComputedStyle(el).color.match(/\d+/g)||[255,255,255]).map(Number);
+    if((c[0]-c[2])>26&&c[0]>120){          /* warm / gold heading -> gold edge light */
+      el.style.setProperty('--edge-c','rgba(248,226,158,.96)');
+      el.style.setProperty('--edge-s','rgba(234,196,124,.7)');
+    }                                       /* else keep the pearl-silver default */
+    /* duplicated-text outline overlay that the moving mask reveals */
+    const edge=document.createElement('span');
+    edge.className='glow-edge';edge.setAttribute('aria-hidden','true');
+    edge.innerHTML=el.innerHTML;
+    el.appendChild(edge);
     let tx=0,ty=0,cx=0,cy=0,raf=0,hover=false;
     const apply=()=>{el.style.setProperty('--gx',cx.toFixed(1)+'px');el.style.setProperty('--gy',cy.toFixed(1)+'px');};
     /* the glow eases toward the cursor for a soft trailing feel */
