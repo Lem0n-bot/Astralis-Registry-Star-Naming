@@ -177,6 +177,27 @@ nav.scrolled{background:rgba(5,7,15,.78);backdrop-filter:blur(18px);-webkit-back
 .chip{padding:.5rem 1rem;border-radius:999px;border:1px solid var(--glass-brd);background:var(--glass);backdrop-filter:blur(12px);font-size:.78rem;color:var(--mute);display:flex;gap:.45rem;align-items:center;transition:border-color .3s,color .3s}
 button.chip:hover{border-color:var(--gold);color:var(--star)}
 .exp-hint{position:absolute;bottom:1.4rem;left:50%;transform:translateX(-50%);font-size:.74rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);background:var(--glass);border:1px solid var(--glass-brd);backdrop-filter:blur(12px);padding:.55rem 1.2rem;border-radius:999px;white-space:nowrap;transition:opacity .6s}
+/* ---- explorer search ---- */
+.exp-search{position:absolute;top:1.05rem;left:50%;transform:translateX(-50%);width:min(400px,calc(100vw - 22rem));z-index:8;pointer-events:auto}
+.es-box{display:flex;align-items:center;gap:.65rem;background:rgba(10,13,32,.72);border:1px solid var(--glass-brd);backdrop-filter:blur(16px);border-radius:999px;padding:.62rem 1.05rem;transition:border-color .3s,box-shadow .3s}
+.es-box:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,185,108,.14)}
+.es-box>svg{width:16px;height:16px;color:var(--gold);flex:none}
+.es-box input{flex:1;min-width:0;background:none;border:none;outline:none;color:var(--star);font-family:var(--body);font-size:.92rem}
+.es-box input::placeholder{color:var(--mute)}
+.es-box input::-webkit-search-cancel-button{display:none}
+.es-clear{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:var(--mute);font-size:.74rem}
+.es-clear:hover{color:var(--star)}
+.es-results{margin-top:.55rem;background:rgba(8,11,26,.94);border:1px solid var(--glass-brd);backdrop-filter:blur(18px);border-radius:16px;max-height:min(54vh,440px);overflow-y:auto;box-shadow:0 26px 70px rgba(0,0,0,.55)}
+.es-item{display:flex;flex-direction:column;gap:.16rem;width:100%;text-align:left;padding:.72rem 1.05rem;border-bottom:1px solid rgba(255,255,255,.05);transition:background .2s}
+.es-item:last-child{border-bottom:none}
+.es-item:hover{background:rgba(217,185,108,.09)}
+.es-nm{color:var(--gold-bright);font-size:.94rem;line-height:1.2}
+.es-meta{color:var(--mute);font-size:.71rem;letter-spacing:.04em}
+.es-msg{padding:1.1rem;color:var(--mute);font-size:.84rem;text-align:center}
+.es-loading{display:flex;align-items:center;justify-content:center;gap:.6rem}
+.es-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(217,185,108,.3);border-top-color:var(--gold);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:600px){.exp-search{top:4.6rem;width:calc(100vw - 1.8rem)}}
 .exp-legend{position:absolute;bottom:1.4rem;left:1.4rem;display:flex;flex-direction:column;gap:.45rem;font-size:.72rem;color:var(--mute)}
 .exp-legend span{display:flex;align-items:center;gap:.5rem}
 .dot{width:9px;height:9px;border-radius:50%}
@@ -188,6 +209,7 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .star-tip{position:absolute;z-index:8;min-width:230px;background:rgba(10,13,30,.82);border:1px solid var(--glass-brd);border-radius:14px;padding:.95rem 1.1rem;backdrop-filter:blur(16px);pointer-events:none;opacity:0;transform:translate(14px,14px) scale(.96);transition:opacity .2s,transform .2s;box-shadow:0 18px 50px rgba(0,0,0,.5)}
 .star-tip.on{opacity:1;transform:translate(14px,14px) scale(1)}
 .star-tip h4{font-family:var(--display);font-size:1.05rem;color:var(--gold-bright);margin-bottom:.4rem}
+.star-tip h4 .tip-id{display:block;font-family:var(--body);font-size:.66rem;letter-spacing:.1em;color:var(--mute);margin-top:.1rem}
 .star-tip table{width:100%;border-collapse:collapse;font-size:.74rem}
 .star-tip td{padding:.16rem 0;color:var(--mute)}
 .star-tip td+td{text-align:right;color:var(--star)}
@@ -855,6 +877,14 @@ footer a:hover{color:var(--gold)}
       <span><span class="dot earth"></span>Earth · you are here</span>
     </div>
     <div class="exp-hint" id="expHint">Drag to explore · Middle-click drag to pan · Scroll to fly closer · Click to claim</div>
+    <div class="exp-search" id="expSearch">
+      <div class="es-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="esInput" type="search" placeholder="Search the registry by name…" autocomplete="off" aria-label="Search named stars" enterkeyhint="search">
+        <button class="es-clear" id="esClear" aria-label="Clear search" hidden>✕</button>
+      </div>
+      <div class="es-results" id="esResults" role="listbox" hidden></div>
+    </div>
   </div>
   <div class="star-tip" id="starTip" aria-hidden="true">
     <h4 id="tipName">AST-104782</h4>
@@ -1423,7 +1453,56 @@ const EXP={inited:false,renderer:null,scene:null,camera:null,raf:null,phase:'idl
   groups:{},indexMaps:{},positions:null,target:new THREE.Vector3(0,0,0),
   sph:{r:340,theta:0.6,phi:1.15},vel:{t:0,p:0},tween:null,hover:-1,
   constLine:null,detailLayer:null,labels:[],audio:null,meteors:[],nextMeteor:Infinity,
-  blackHole:null,nextShower:Infinity};
+  blackHole:null,nextShower:Infinity,
+  names:null,searchList:null,customerNames:null};
+
+/* =================================================================
+   STAR NAME REGISTRY — every pre-claimed star gets a unique name drawn
+   from multilingual pools; customer-named stars persist in localStorage.
+   Two tokens per name (pool of P) give P*P unique combinations per pool,
+   far more than the ~7,600 reserved stars, so names never collide.
+   ================================================================= */
+const STAR_NAME_POOLS=[
+ ['Aria','Oliver','Amelia','Henry','Isla','Theodore','Grace','Sebastian','Eleanor','Jasper','Violet','Arthur','Hazel','Felix','Ivy','Oscar','Clara','Rowan','Maeve','Silas','Elise','Hugo','Nova','Elliot','Pearl','Wren'],
+ ['李','王','张','刘','陈','杨','黄','赵','周','吴','伟','芳','娜','敏','静','丽','强','磊','军','洋','勇','艳','杰','涛','明','梅'],
+ ['민준','서연','도윤','지우','하준','서윤','예준','지민','주원','유진','현우','수빈','지호','은우','다은','시우','건우','채원','우진','민서','준서','서아','하은','지안','윤서','나연'],
+ ['陽翔','結菜','大翔','葵','悠真','陽菜','蓮','凛','湊','結愛','大和','莉子','颯太','美咲','樹','芽依','悠人','桜','律','心春','朝陽','紬','碧','杏','暖','詩'],
+ ['ป้อง','ฟ้า','ก้อง','แพร','ภูมิ','น้ำ','มิ้นต์','ดาว','นนท์','พลอย','อาร์ม','แก้ม','บอส','หญิง','เจมส์','อิง','ตอง','ปลา','กานต์','ขวัญ','นัท','ฝน','เบล','มุก','ต้นกล้า','พีท'],
+ ['An','Bình','Châu','Dũng','Hà','Hương','Khanh','Linh','Long','Mai','Minh','Nam','Ngọc','Như','Phong','Phương','Quân','Quỳnh','Sơn','Thảo','Thu','Trang','Trí','Tú','Việt','Yến'],
+ ['សុខ','ដារា','ចន្ទ','រតនៈ','បូផា','វិសាល','សុភា','ចន្ទនី','រស្មី','សុវណ្ណ','ធារ៉ា','សំណាង','កុសល','វណ្ណៈ','សុផល','នាង','ពិសី','សុធា','ចរិយា','បញ្ញា','រ៉ានី','ស្រីពេជ្រ','ពិសិដ្ឋ','កែវ','ម៉ាលីស','សុគន្ធ'],
+ ['Lukas','Hannah','Felix','Mia','Jonas','Emilia','Leon','Lena','Paul','Lea','Maximilian','Sophie','Elias','Marie','Ben','Johanna','Noah','Clara','Luis','Frieda','Anton','Greta','Moritz','Ida','Theo','Mathilda'],
+ ['Алексей','Анна','Дмитрий','Мария','Иван','Екатерина','Сергей','Ольга','Михаил','Наталья','Андрей','Татьяна','Николай','Елена','Владимир','Ирина','Павел','Светлана','Юрий','Дарья','Артём','София','Максим','Полина','Кирилл','Вера'],
+ ['Louis','Camille','Hugo','Chloé','Jules','Léa','Gabriel','Manon','Arthur','Inès','Raphaël','Jade','Lucas','Louise','Noé','Emma','Théo','Alice','Nathan','Sarah','Antoine','Juliette','Étienne','Margot','Adrien','Colette'],
+ ['Mateo','Sofía','Santiago','Valentina','Diego','Isabella','Sebastián','Camila','Alejandro','Lucía','Emiliano','Renata','Leonardo','Ximena','Maximiliano','Regina','Daniel','Victoria','Gael','Frida','Joaquín','Mariana','Bruno','Guadalupe','Tomás','Paloma'],
+ ['Doge','Pepe','Stonks','Nyan','Shrek','Rickroll','Sigma','Chad','Karen','Yeet','Sus','Pog','Gigachad','Bonk','Cheems','Wojak','Pikachu','Skibidi','Drip','Goblin','Moonboy','Vibe','Glitch','Sparta','Lurk','Noob']
+];
+/** deterministic, unique name for the Nth reserved star. Two distinct tokens
+   per name give L*(L-1) unique combinations per pool (the tokens are never the
+   same, so no "Aria Aria"). Beyond capacity the build loop disambiguates. */
+function genStarName(ord){
+  const P=STAR_NAME_POOLS,pool=P[ord%P.length],L=pool.length,idx=Math.floor(ord/P.length);
+  const a=idx%L,t=Math.floor(idx/L)%(L-1),b=(a+1+t)%L;
+  return pool[a]+' '+pool[b];
+}
+const NAMED_KEY='astralis_named_stars';
+function loadCustomerNames(){try{return JSON.parse(localStorage.getItem(NAMED_KEY))||{};}catch(_){return{};}}
+function saveCustomerNames(m){try{localStorage.setItem(NAMED_KEY,JSON.stringify(m));}catch(_){}}
+function giPos(gi){return new THREE.Vector3(EXP.positions[gi*3],EXP.positions[gi*3+1],EXP.positions[gi*3+2]);}
+function starName(gi){return (EXP.names&&EXP.names[gi])||null;}
+function isTaken(gi,status){return status==='reserved'||!!starName(gi);}   /* any named star is in the registry */
+/** persist a customer's chosen name -> instantly searchable + survives refresh */
+function registerCustomerName(gi,name){
+  if(gi==null||!name||name==='—'||!name.trim())return;
+  name=name.trim();
+  const m=loadCustomerNames();m[gi]=name;saveCustomerNames(m);
+  if(EXP.names)EXP.names[gi]=name;
+  if(EXP.customerNames)EXP.customerNames[gi]=name;
+  if(EXP.searchList){
+    const e=EXP.searchList.find(x=>x.gi===gi);
+    if(e){e.name=name;e.lname=name.toLowerCase();}
+    else EXP.searchList.push({gi,name,lname:name.toLowerCase()});
+  }
+}
 
 function spriteTexture(inner,outer){
   const c=document.createElement('canvas');c.width=c.height=64;
@@ -1613,6 +1692,41 @@ function buildGalaxy(){
   E.groups.featured=makePoints(buckets.featured,texFeat,3.4,false); /* premium, only slightly larger */
   E.indexMaps={available:buckets.available,reserved:buckets.reserved,featured:buckets.featured};
 
+  /* --- assign every pre-claimed (reserved) star a unique name, then build the
+     search index. Customer-named stars from localStorage override/extend it. --- */
+  E.names={};
+  const used=new Set();
+  buckets.reserved.forEach((gi,ord)=>{
+    let nm=genStarName(ord),key=nm.toLowerCase();
+    if(used.has(key)){let k=2;while(used.has((nm+' '+k).toLowerCase()))k++;nm=nm+' '+k;key=nm.toLowerCase();}
+    used.add(key);E.names[gi]=nm;
+  });
+  E.customerNames=loadCustomerNames();
+  for(const giStr in E.customerNames)E.names[+giStr]=E.customerNames[giStr];
+  /* Cho An — the heart star of the spiral (rendered 1/5 larger than featured) */
+  {
+    const tx=34,ty=6,tz=-20;let best=Infinity,bg=-1;
+    buckets.available.forEach(gi=>{const dx=pos[gi*3]-tx,dy=pos[gi*3+1]-ty,dz=pos[gi*3+2]-tz,d=dx*dx+dy*dy+dz*dz;if(d<best){best=d;bg=gi;}});
+    if(bg>=0)E.choAnGi=bg;
+  }
+  /* named registry stars, with requested adjacencies (each picks the nearest
+     free star to a target / to its partner, so "next to" stars sit together) */
+  {
+    const usd=new Set();if(E.choAnGi!=null)usd.add(E.choAnGi);
+    const near=(tx,ty,tz)=>{let bd=Infinity,bg=-1;buckets.available.forEach(gi=>{if(usd.has(gi))return;const dx=pos[gi*3]-tx,dy=pos[gi*3+1]-ty,dz=pos[gi*3+2]-tz,d=dx*dx+dy*dy+dz*dz;if(d<bd){bd=d;bg=gi;}});return bg;};
+    const place=(nm,tx,ty,tz)=>{const gi=near(tx,ty,tz);if(gi>=0){usd.add(gi);E.names[gi]=nm;}return gi;};
+    const nextTo=(nm,gi)=>(gi==null||gi<0)?-1:place(nm,pos[gi*3],pos[gi*3+1],pos[gi*3+2]);
+    if(E.choAnGi!=null)E.names[E.choAnGi]='Cho An';
+    const gTuanAnh=place('Nguyen Tuan Anh',120,8,60);
+    nextTo('Dang Ngoc Tram',gTuanAnh);
+    place('Nguyen Tuan Kiet',-90,5,130);
+    place('Dang Thi Thuy',60,-6,-150);
+    const gSau=place('Trinh Thi Sau',-140,10,-60);
+    nextTo('Nguyen Nam Son',gSau);
+    nextTo('Nguyen Anh Tuan',E.choAnGi);
+  }
+  E.searchList=Object.keys(E.names).map(giStr=>{const gi=+giStr,name=E.names[gi];return{gi,name,lname:name.toLowerCase()};});
+
   /* detail layer: faint extra stars revealed when zoomed in */
   {
     const M=16000,p=new Float32Array(M*3);
@@ -1708,6 +1822,15 @@ function buildGalaxy(){
     E.earthLabel.material.opacity=.98;
     E.earthLabel.position.copy(E.earthPos).add(new THREE.Vector3(0,11,0));
     E.scene.add(E.earthLabel);
+  }
+
+  /* --- Cho An: a single star point, 1/5 larger than a featured star (4.08 vs 3.4) --- */
+  if(E.choAnGi!=null){
+    E.choAnPos=giPos(E.choAnGi);
+    const cg=new THREE.BufferGeometry();
+    cg.setAttribute('position',new THREE.BufferAttribute(new Float32Array([E.choAnPos.x,E.choAnPos.y,E.choAnPos.z]),3));
+    E.choAn=new THREE.Points(cg,new THREE.PointsMaterial({size:4.08,map:texFeat,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xfff0d0,sizeAttenuation:true,opacity:.98}));
+    E.scene.add(E.choAn);
   }
   E.baseSizes={available:2.1,reserved:1.7,featured:3.4};
 
@@ -1841,7 +1964,8 @@ function doHover(){
   E.hover=(bestKey==='reserved')?-1:gi;
   const v=new THREE.Vector3(E.positions[gi*3],E.positions[gi*3+1],E.positions[gi*3+2]);
   const info=starInfo(gi,v);
-  $('#tipName').textContent=info.id;
+  const tnm=starName(gi);
+  $('#tipName').innerHTML=tnm?esc(tnm)+'<span class="tip-id">'+info.id+'</span>':info.id;
   $('#tipSpec').textContent=info.spec;$('#tipMag').textContent=info.mag;
   $('#tipDist').textContent=info.dist.toLocaleString()+' ly';
   $('#tipConst').textContent=CONSTELLATIONS[info.ci][0];
@@ -1856,6 +1980,7 @@ function doHover(){
 /* ---------- selection ---------- */
 function selectStar(gi){
   const E=EXP;
+  if(E.phase!=='explore'&&E.phase!=='orbit')return;   /* ignore during warp / travel */
   const v=new THREE.Vector3(E.positions[gi*3],E.positions[gi*3+1],E.positions[gi*3+2]);
   const info=starInfo(gi,v);
   state.selectedStar={gi,info,pos:v};
@@ -1872,8 +1997,13 @@ function selectStar(gi){
   });
 }
 function showDetail(info,v,gi){
-  $('#d-name').textContent=info.id;
-  $('#d-sector').textContent=`Sector ${info.sec} · Astralis catalogue`;
+  const nm=starName(gi),taken=isTaken(gi,info.status);
+  $('#d-name').textContent=nm||info.id;
+  $('#d-sector').textContent=nm?`${info.id} · Sector ${info.sec}`:`Sector ${info.sec} · Astralis catalogue`;
+  /* a named star is already in the registry — show it, but don't offer to claim */
+  const cb=$('#claimBtn'),note=$('#detail .d-note');
+  if(taken){cb.disabled=true;cb.textContent='Already in the registry ✦';if(note)note.textContent='This star has already been named.';}
+  else{cb.disabled=false;cb.textContent='Claim This Star ✦';if(note)note.textContent='Free 15-minute reservation · No payment yet';}
   $('#d-ra').textContent=info.ra;$('#d-dec').textContent=info.dec;
   $('#d-dist').textContent=info.dist.toLocaleString()+' light years';
   $('#d-mag').textContent=info.mag;$('#d-spec').textContent=info.spec;
@@ -2007,6 +2137,44 @@ function closeExplorer(){
 }
 $('#expClose').addEventListener('click',()=>closeExplorer());
 $$('[data-launch]').forEach(b=>b.addEventListener('click',openExplorer));
+
+/* ---------- registry search (name lookup, partial + case-insensitive) ---------- */
+(function(){
+  const input=$('#esInput'),results=$('#esResults'),clearBtn=$('#esClear'),wrap=$('#expSearch');
+  let timer=null;
+  function close(){results.hidden=true;results.innerHTML='';}
+  function loading(){results.innerHTML='<div class="es-msg es-loading"><span class="es-spin"></span>Searching the registry…</div>';results.hidden=false;}
+  function search(q){
+    const lq=q.trim().toLowerCase();
+    if(!lq){close();return;}
+    if(!EXP.searchList){results.innerHTML='<div class="es-msg">Preparing the registry…</div>';results.hidden=false;return;}
+    const list=EXP.searchList,out=[];
+    for(let i=0;i<list.length&&out.length<200;i++)if(list[i].lname.indexOf(lq)>=0)out.push(list[i]);
+    out.sort((a,b)=>{const x=a.lname.startsWith(lq)?0:1,y=b.lname.startsWith(lq)?0:1;return x-y||a.name.length-b.name.length;});
+    if(!out.length){results.innerHTML='<div class="es-msg">No named stars match “'+esc(q.trim())+'”.</div>';results.hidden=false;return;}
+    const shown=out.slice(0,40);
+    results.innerHTML=shown.map(it=>{
+      const info=starInfo(it.gi,giPos(it.gi));
+      return '<button class="es-item" role="option" data-gi="'+it.gi+'"><span class="es-nm">'+esc(it.name)+'</span><span class="es-meta">'+info.id+' · '+esc(CONSTELLATIONS[info.ci][0])+'</span></button>';
+    }).join('')+(out.length>shown.length?'<div class="es-msg">Showing first '+shown.length+' of '+out.length+' matches — refine your search.</div>':'');
+    results.hidden=false;
+  }
+  input.addEventListener('input',()=>{
+    clearBtn.hidden=!input.value;
+    if(input.value.trim())loading();else close();
+    clearTimeout(timer);timer=setTimeout(()=>search(input.value),150);
+  });
+  results.addEventListener('click',e=>{
+    const b=e.target.closest('.es-item');if(!b)return;
+    const gi=+b.dataset.gi;close();input.blur();selectStar(gi);
+  });
+  clearBtn.addEventListener('click',()=>{input.value='';clearBtn.hidden=true;close();input.focus();});
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&input.value){e.stopPropagation();input.value='';clearBtn.hidden=true;close();}
+  });
+  /* clicking elsewhere in the explorer closes the results */
+  document.addEventListener('pointerdown',e=>{if(!wrap.contains(e.target))close();});
+})();
 addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
   if($('#certConfirm').classList.contains('on'))closeCertConfirm();
@@ -2271,7 +2439,7 @@ function loop(){
     m.size=E.baseSizes[k]*(0.35+0.65*sizeFade);
   });
   if(E.coreSprite)E.coreSprite.material.opacity=THREE.MathUtils.clamp((z-30)/220,0.1,0.95);
-  if(E.detailLayer)E.detailLayer.material.opacity=THREE.MathUtils.clamp((220-z)/180,0,0.4);
+  if(E.detailLayer)E.detailLayer.material.opacity=0.26+0.22*THREE.MathUtils.clamp((220-z)/200,0,1);   /* always visible, brighter up close */
   const lop=THREE.MathUtils.clamp((650-z)/240,0,1)*THREE.MathUtils.clamp((z-34)/55,0,1);
   E.labels.forEach(l=>l.material.opacity=lop);
   /* Earth marker keeps a readable, gently pulsing presence at every zoom */
@@ -2289,6 +2457,8 @@ function loop(){
     E.earthLabel.scale.set(ls,ls*0.1875,1);
     E.earthLabel.position.set(E.earthPos.x,E.earthPos.y+Math.max(4.5,z*0.03),E.earthPos.z);
   }
+  /* Cho An tracks the featured-star scaling, 1/5 larger */
+  if(E.choAn){E.choAn.material.size=4.08*(0.35+0.65*sizeFade);E.choAn.material.opacity=.98*fade;}
   /* selected-star marker: solid glowing point + halo, gently pulsing */
   if(E.selMarker&&E.selMarker.visible){
     const pulse=1+Math.sin(now*0.005)*.16;
@@ -2395,7 +2565,10 @@ function closeCertConfirm(){$('#certConfirm').classList.remove('on');document.bo
 $$('[data-closecert]').forEach(b=>b.addEventListener('click',closeCertConfirm));
 $('#cc-back').addEventListener('click',closeCertConfirm);
 $('#cc-confirm').addEventListener('click',()=>{
-  state.bag.push(currentCertData());
+  const item=currentCertData();
+  state.bag.push(item);
+  /* the named star is now in the registry: persist + index its name */
+  if(state.reservedStar&&state.reservedStar.gi!=null)registerCustomerName(state.reservedStar.gi,item.name);
   updateCart();
   resetPersonaliseForm();
   closeCertConfirm();
@@ -2611,11 +2784,11 @@ $('#co-pay').addEventListener('click',async()=>{
     try{
       const r=await fetch('/api/verify-email/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
       const data=await r.json().catch(()=>({}));
-      if(r.status===429){setStatus('Please wait '+(data.retryAfter||20)+'s before requesting another code.','err');startCooldown(data.retryAfter||20);return;}
+      if(r.status===429){setStatus('Please wait '+(data.retryAfter||15)+'s before requesting another code.','err');startCooldown(data.retryAfter||15);return;}
       if(!r.ok){setStatus('Could not send a code. Please check the address and try again.','err');refreshSend();return;}
       codeEl.disabled=false;codeEl.value='';codeEl.focus();
       setStatus('Code sent to '+email+'. Check your inbox.');
-      startCooldown(20);
+      startCooldown(15);
     }catch(_){
       setStatus('Network error. Please try again.','err');refreshSend();
     }finally{
