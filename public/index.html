@@ -401,6 +401,7 @@ footer a:hover{color:var(--gold)}
 .secure-row{display:flex;justify-content:center;gap:1.2rem;font-size:.68rem;color:var(--mute);margin-top:1.1rem;flex-wrap:wrap}
 .secure-row span{display:flex;gap:.4rem;align-items:center}
 .secure-row svg{width:12px;height:12px;color:var(--gold)}
+.pay-note{font-size:.8rem;color:var(--mute);line-height:1.55;background:rgba(217,185,108,.06);border:1px solid var(--line);border-radius:12px;padding:.8rem 1rem;margin:0 0 1rem}
 .success{text-align:center;padding:1.2rem 0}
 .success .big{width:80px;height:80px;margin:0 auto 1.2rem;border-radius:50%;border:1px solid var(--gold);display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,rgba(242,220,162,.3),transparent);animation:pulseGlow 2.2s ease-in-out infinite}
 @keyframes pulseGlow{0%,100%{box-shadow:0 0 30px rgba(217,185,108,.3)}50%{box-shadow:0 0 60px rgba(217,185,108,.6)}}
@@ -974,21 +975,12 @@ footer a:hover{color:var(--gold)}
         <div><span>Certificate style</span><span id="sum-style">Midnight</span></div>
         <div class="tot"><span>Total</span><span id="sum-total">$79.00 AUD</span></div>
       </div>
-      <div class="paybtns">
-        <button class="paybtn apple" data-pay> Pay</button>
-        <button class="paybtn gpay" data-pay>G Pay</button>
-        <button class="paybtn pp" data-pay>PayPal</button>
-      </div>
-      <div class="div-or">or pay by card</div>
-      <div class="field"><label for="co-card">Card number</label><input id="co-card" inputmode="numeric" placeholder="0000 0000 0000 0000"></div>
-      <div class="row2">
-        <div class="field"><label for="co-exp">Expiry</label><input id="co-exp" placeholder="MM / YY"></div>
-        <div class="field"><label for="co-cvc">CVC</label><input id="co-cvc" inputmode="numeric" placeholder="123"></div>
-      </div>
-      <button class="btn btn-gold" style="width:100%" data-pay>Place Order · <span id="paybtn-total">$79.00</span></button>
+      <p class="pay-note">You'll be taken to our secure Stripe checkout to pay. Card details are entered on Stripe and never touch this site.</p>
+      <div class="ev-status" id="pay-status" role="status" aria-live="polite"></div>
+      <button class="btn btn-gold" style="width:100%" id="co-pay" aria-busy="false">Pay securely · <span id="paybtn-total">$79.00</span></button>
       <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:.7rem" id="co-back2">Back</button>
       <div class="secure-row">
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>SSL encrypted</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Secured by Stripe</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg>Money-back guarantee</span>
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>Instant delivery</span>
       </div>
@@ -2541,11 +2533,40 @@ $('#co-next3').addEventListener('click',()=>{
   setStep(4);
 });
 $('#co-back2').addEventListener('click',()=>setStep(3));   /* payment back -> delivery */
-$$('[data-pay]').forEach(b=>b.addEventListener('click',()=>{
-  $('#ordNo').textContent='AST-ORD-'+(10000+Math.random()*89999|0);
-  state.bag=[];updateCart();
-  setStep(5);
-}));
+/* ---------- Stripe Checkout: create a session and redirect to Stripe ---------- */
+const PAY_ERRORS={
+  empty_cart:'Your cart is empty.',
+  invalid_email:'Please use a valid email address.',
+  missing_address:'Please complete your delivery address.',
+  missing_locality:'Please add your suburb and city.',
+  invalid_state:'Please choose an Australian state.',
+  invalid_postcode:'Please enter a valid 4-digit postcode.',
+  missing_phone:'Please add a phone number.',
+  invalid_package:'One of your items is no longer available.',
+  stripe_not_configured:'Payments are not available right now. Please try again later.',
+  stripe_error:'We couldn’t start checkout. Please try again.'
+};
+$('#co-pay').addEventListener('click',async()=>{
+  const btn=$('#co-pay'),status=$('#pay-status');
+  if(!state.bag.length){toast('Your cart is empty');return;}
+  const label=btn.innerHTML;
+  btn.disabled=true;btn.setAttribute('aria-busy','true');btn.textContent='Redirecting to secure checkout…';
+  status.className='ev-status';status.textContent='';
+  const restore=()=>{btn.disabled=false;btn.setAttribute('aria-busy','false');btn.innerHTML=label;};
+  try{
+    const email=(state.delivery&&state.delivery.email)||$('#co-em').value.trim();
+    const r=await fetch('/api/checkout/create-session',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({items:state.bag,email,delivery:state.delivery})});
+    const data=await r.json().catch(()=>({}));
+    if(r.ok&&data.url){window.location.href=data.url;return;}   /* leave the page for Stripe */
+    status.className='ev-status err';
+    status.textContent=PAY_ERRORS[data.error]||'Sorry, we couldn’t start checkout. Please try again.';
+    restore();
+  }catch(_){
+    status.className='ev-status err';status.textContent='Network error. Please try again.';
+    restore();
+  }
+});
 
 /* =================================================================
    EMAIL VERIFICATION (checkout step 2) — "Send code" + 6-digit code.
