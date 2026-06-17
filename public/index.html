@@ -1834,7 +1834,16 @@ function buildGalaxy(){
      search index. Customer-named stars from localStorage override/extend it. --- */
   E.names={};
   const used=new Set();
+  /* pools 1/2/4/6 = Chinese / Korean / Thai / Cambodian(Khmer). For 39% of the
+     stars that would draw one of those names, drop the personal name and label
+     the star with its own catalogue star name (AST-…) instead. */
+  const ASIAN_POOLS=new Set([1,2,4,6]);
+  const catalogueName=gi=>'AST-'+String(100000+(gi*7919)%900000);
   buckets.reserved.forEach((gi,ord)=>{
+    if(ASIAN_POOLS.has(ord%STAR_NAME_POOLS.length)&&h1(gi,71)<0.39){
+      E.names[gi]=catalogueName(gi); /* give them their star name */
+      return;
+    }
     let nm=genStarName(ord),key=nm.toLowerCase();
     if(used.has(key)){let k=2;while(used.has((nm+' '+k).toLowerCase()))k++;nm=nm+' '+k;key=nm.toLowerCase();}
     used.add(key);E.names[gi]=nm;
