@@ -2693,28 +2693,17 @@ const SPACE_FACTS=[
   'The Sun makes up 99.8% of all the mass in our solar system.',
 ];
 
-/* Reveal order: light the first star, then for each edge grow the line and light
-   the star it reaches (branches just draw, since their stars are already lit). */
-function revealSequence(c){
-  const lit=new Set(),seq=[];
-  const first=c.edges.length?c.edges[0][0]:0;
-  seq.push({star:first});lit.add(first);
-  c.edges.forEach((e,ei)=>{
-    if(!lit.has(e[0])){seq.push({star:e[0]});lit.add(e[0]);}
-    seq.push({line:ei});
-    if(!lit.has(e[1])){seq.push({star:e[1]});lit.add(e[1]);}
-  });
-  return seq;
-}
-
-/* Draw the constellation on a <canvas> (rock-solid — no SVG namespace/sizing
-   pitfalls), with the same growing-line feel as the star profile: greyed stars,
-   a golden line eases out from star to star, each reached star pops + glows, and
-   on completion a starlight spark sweeps every path. Returns {stop, buildEnd}. */
+/* Draw the constellation on a <canvas> as a *graph* coming alive: light starts at
+   the left-most star and propagates through the real connection network (BFS
+   wavefront). At a branch point every child edge fires AT ONCE, so the light
+   visibly splits and flows on independently — upper branches up, lower down,
+   generally left→right. A golden pulse travels each path, leaving the line lit
+   behind it; reached stars pop then settle. Once charted, pulses keep flowing
+   outward so the network stays alive. Returns {stop, buildEnd}. */
 function startConstellation(canvas,c,reduced){
   const ctx=canvas.getContext('2d');
   const DPR=Math.min(devicePixelRatio||1,2);
-  const [vw,vh]=c.vb;
+  const [vw,vh]=c.vb,N=c.stars.length;
   let W,H,map,running=true,raf=0;
   function layout(){
     W=canvas.width=Math.round(innerWidth*DPR);
@@ -2726,56 +2715,68 @@ function startConstellation(canvas,c,reduced){
   }
   layout();addEventListener('resize',layout);
 
-  /* timeline: spread the build across ~4.6s regardless of constellation size */
-  const seq=revealSequence(c);
-  const stepT=Math.max(230,Math.min(600,4600/Math.max(1,seq.length)));
-  const starLit={},edgeStart={};
-  let t=360;
-  seq.forEach(s=>{
-    if('star' in s){if(starLit[s.star]==null)starLit[s.star]=t;t+=stepT*0.5;}
-    else{edgeStart[s.line]=t;t+=stepT;}
+  /* ---- propagate light through the real graph: BFS wavefront from the
+     left-most star, so siblings illuminate simultaneously (branching) ---- */
+  const adj=Array.from({length:N},()=>[]);
+  c.edges.forEach(e=>{adj[e[0]].push(e[1]);adj[e[1]].push(e[0]);});
+  let root=0;for(let i=1;i<N;i++)if(c.stars[i][0]<c.stars[root][0])root=i;
+  const LEAD=320,EDGE_DUR=380;                       /* snappy per-connection delay (~50% less) */
+  const starLit=new Array(N).fill(Infinity),dep=new Array(N).fill(0),vis=new Array(N).fill(false);
+  starLit[root]=LEAD;vis[root]=true;
+  const q=[root];
+  for(let h=0;h<q.length;h++){const u=q[h];
+    for(const v of adj[u])if(!vis[v]){vis[v]=true;starLit[v]=starLit[u]+EDGE_DUR;dep[v]=dep[u]+1;q.push(v);}}
+  /* every edge starts when its earlier-lit endpoint illuminates, drawing from it */
+  const edges=c.edges.map(e=>{
+    const from=starLit[e[0]]<=starLit[e[1]]?e[0]:e[1];
+    return {from,to:from===e[0]?e[1]:e[0],start:starLit[from],dep:dep[from]};
   });
-  const buildEnd=t,surgeStart=buildEnd+250,LINE_DUR=Math.min(560,stepT*0.92),POP=300;
+  const buildEnd=Math.max(LEAD,...edges.map(e=>e.start+EDGE_DUR)),POP=300;
   const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
   const t0=performance.now();
+  const dot=(x,y,r,col,blur)=>{ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=blur*DPR;
+    ctx.beginPath();ctx.arc(x,y,r*DPR,0,6.2832);ctx.fill();ctx.shadowBlur=0;};
 
   function frame(now){
     if(!running)return;
     const el=reduced?1e9:(now-t0);                                   /* reduced: draw finished */
     ctx.clearRect(0,0,W,H);ctx.lineCap='round';ctx.lineJoin='round';
-    /* connection lines (grey-hidden until their turn, then grow gold) */
-    c.edges.forEach((e,ei)=>{
-      const st=edgeStart[ei];if(st==null||el<st)return;
-      const k=Math.min(1,(el-st)/LINE_DUR),p=ease(k),drawing=k<1;
-      const A=map(c.stars[e[0]][0],c.stars[e[0]][1]),B=map(c.stars[e[1]][0],c.stars[e[1]][1]);
-      ctx.strokeStyle=drawing?'rgba(255,243,208,0.96)':'rgba(233,201,122,0.92)';
-      ctx.lineWidth=(drawing?2.6:1.8)*DPR;
-      ctx.shadowColor='rgba(242,220,162,0.95)';ctx.shadowBlur=(drawing?10:4)*DPR;
-      ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(A[0]+(B[0]-A[0])*p,A[1]+(B[1]-A[1])*p);ctx.stroke();
+    /* connection paths: a golden pulse grows from the lit star to the next,
+       leaving the line illuminated behind it (bright head while travelling) */
+    edges.forEach(info=>{
+      if(el<info.start)return;
+      const k=Math.min(1,(el-info.start)/EDGE_DUR),p=ease(k),drawing=k<1;
+      const A=map(c.stars[info.from][0],c.stars[info.from][1]);
+      const B=map(c.stars[info.to][0],c.stars[info.to][1]);
+      const hx=A[0]+(B[0]-A[0])*p,hy=A[1]+(B[1]-A[1])*p;
+      ctx.strokeStyle=drawing?'rgba(255,243,208,0.96)':'rgba(233,201,122,0.9)';
+      ctx.lineWidth=(drawing?2.5:1.7)*DPR;
+      ctx.shadowColor='rgba(242,220,162,0.9)';ctx.shadowBlur=(drawing?9:4)*DPR;
+      ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(hx,hy);ctx.stroke();ctx.shadowBlur=0;
+      if(drawing)dot(hx,hy,2.6,'rgba(255,250,235,0.95)',12);          /* travelling pulse head */
     });
-    ctx.shadowBlur=0;
-    /* stars: greyed until reached, then a bright pop settling to a glowing gold */
+    /* stars: greyed until the light reaches them, then a bright pop → gold glow */
     c.stars.forEach((pt,i)=>{
-      const P=map(pt[0],pt[1]),r=(pt[2]||3.4)*DPR,lt=starLit[i];
-      if(lt==null||el<lt){
-        ctx.fillStyle='rgba(150,160,185,0.5)';
-        ctx.beginPath();ctx.arc(P[0],P[1],r*0.8,0,6.2832);ctx.fill();
-      }else{
-        const k=Math.min(1,(el-lt)/POP),pop=1+(k<1?Math.sin(k*Math.PI)*0.8:0);
+      const P=map(pt[0],pt[1]),r=(pt[2]||3.4);
+      if(el<starLit[i]){dot(P[0],P[1],r*0.8,'rgba(150,160,185,0.5)',0);}
+      else{
+        const k=Math.min(1,(el-starLit[i])/POP),pop=1+(k<1?Math.sin(k*Math.PI)*0.85:0);
         const breathe=0.85+0.15*Math.sin(now*0.005+i*1.7);
-        ctx.fillStyle=k<1?'rgba(255,247,230,1)':'rgba(244,224,170,1)';
-        ctx.shadowColor='rgba(242,220,162,1)';ctx.shadowBlur=((k<1?13:5)+3*breathe)*DPR;
-        ctx.beginPath();ctx.arc(P[0],P[1],r*pop,0,6.2832);ctx.fill();ctx.shadowBlur=0;
+        dot(P[0],P[1],r*pop,k<1?'rgba(255,247,230,1)':'rgba(244,224,170,1)',(k<1?14:5)+3*breathe);
       }
     });
-    /* completion surge: a bright spark sweeps each path, rippling in draw order */
-    if(!reduced)c.edges.forEach((e,ei)=>{
-      const k=(el-(surgeStart+ei*80))/520;if(k<0||k>1)return;
-      const A=map(c.stars[e[0]][0],c.stars[e[0]][1]),B=map(c.stars[e[1]][0],c.stars[e[1]][1]);
-      ctx.fillStyle='rgba(255,251,235,'+Math.sin(k*Math.PI).toFixed(3)+')';
-      ctx.shadowColor='#fff';ctx.shadowBlur=12*DPR;
-      ctx.beginPath();ctx.arc(A[0]+(B[0]-A[0])*k,A[1]+(B[1]-A[1])*k,3.2*DPR,0,6.2832);ctx.fill();ctx.shadowBlur=0;
-    });
+    /* once charted, golden pulses keep flowing outward (left→right) so the
+       network stays alive instead of sitting in a dead pause */
+    if(!reduced&&el>buildEnd+200){
+      const CYCLE=2100,SPARK=560,base=el-buildEnd-200;
+      edges.forEach(info=>{
+        const local=base-info.dep*110;if(local<0)return;
+        const k=(local%CYCLE)/SPARK;if(k>1)return;
+        const A=map(c.stars[info.from][0],c.stars[info.from][1]);
+        const B=map(c.stars[info.to][0],c.stars[info.to][1]);
+        dot(A[0]+(B[0]-A[0])*k,A[1]+(B[1]-A[1])*k,2.7,'rgba(255,251,235,'+(Math.sin(k*Math.PI)*0.9).toFixed(3)+')',12);
+      });
+    }
     if(reduced){raf=0;return;}                                       /* one static frame */
     raf=requestAnimationFrame(frame);
   }
