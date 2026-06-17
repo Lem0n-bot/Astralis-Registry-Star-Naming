@@ -1987,12 +1987,14 @@ function buildGalaxy(){
   /* bright marker placed on the chosen star while its profile is open, so the
      selected star reads as a solid glowing point instead of a faint dot */
   {
-    const sTex=spriteTexture('rgba(255,252,242,1)','rgba(255,224,165,.8)');
-    E.selMarker=new THREE.Sprite(new THREE.SpriteMaterial({map:sTex,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xfff1d4}));
+    /* neutral-white sprites; tinted per status (white/featured/gold) on select */
+    const sTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.85)');
+    E.selMarker=new THREE.Sprite(new THREE.SpriteMaterial({map:sTex,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff}));
     E.selMarker.visible=false;E.scene.add(E.selMarker);
     /* soft halo behind it for extra presence up close */
-    E.selHalo=new THREE.Sprite(new THREE.SpriteMaterial({map:spriteTexture('rgba(255,236,200,.7)','rgba(255,210,150,.18)'),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffe6b8}));
+    E.selHalo=new THREE.Sprite(new THREE.SpriteMaterial({map:spriteTexture('rgba(255,255,255,.7)','rgba(255,255,255,.16)'),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff}));
     E.selHalo.visible=false;E.scene.add(E.selHalo);
+    E.selGlow=1;E.selCore=1;
   }
 
   /* warp streaks scene */
@@ -2137,13 +2139,17 @@ function selectStar(gi){
   E.phase='travel';
   $('#starTip').classList.remove('on');
   $('#expHint').style.opacity=0;
-  /* light up the chosen star so it's clearly visible as we fly to it */
-  if(E.selMarker){E.selMarker.position.copy(v);E.selMarker.visible=true;}
-  if(E.selHalo){E.selHalo.position.copy(v);E.selHalo.visible=true;}
+  /* light up the chosen star in its own status colour so it's clearly visible
+     as we fly to it: white for available, a brighter/larger white glow for a
+     featured premium star, gold for an already-named (reserved) star */
+  const sel=SEL_STYLE[info.status]||SEL_STYLE.available;
+  if(E.selMarker){E.selMarker.position.copy(v);E.selMarker.visible=true;E.selMarker.material.color.setHex(sel.mark);E.selMarker.material.opacity=0;}
+  if(E.selHalo){E.selHalo.position.copy(v);E.selHalo.visible=true;E.selHalo.material.color.setHex(sel.halo);E.selHalo.material.opacity=0;}
+  E.selGlow=sel.glow;E.selCore=sel.core;
   startTween(v,9,2300,()=>{
     E.phase='orbit';
     showDetail(info,v,gi);
-    drawConstellation(v,info.ci);
+    drawConstellation(v,info.ci,gi);
   });
 }
 function showDetail(info,v,gi){
@@ -2186,41 +2192,101 @@ function showDetail(info,v,gi){
   }
   dt.classList.add('on');dt.setAttribute('aria-hidden','false');
 }
+/* selected-star highlight palette, keyed by availability status */
+const SEL_STYLE={
+  available:{mark:0xffffff,halo:0xcfe0ff,glow:1.00,core:1.00},
+  featured :{mark:0xffffff,halo:0xffffff,glow:1.55,core:1.22}, /* brighter, larger glow */
+  reserved :{mark:0xffe6b8,halo:0xffd49a,glow:1.00,core:1.00}, /* already named -> gold */
+};
+/* per-neighbour node glow, also keyed by status (white / brighter white / gold) */
+function constStarStyle(status){
+  if(status==='featured') return {color:0xffffff,base:2.3,op:1.00};
+  if(status==='reserved') return {color:0xf0d488,base:1.3,op:.85};
+  return {color:0xffffff,base:1.6,op:.95}; /* available */
+}
+/* Walk outward from the chosen star, hopping to the nearest catalogued star
+   within [minD,maxD] each step, to form a real, spread-out constellation chain. */
+function neighbourChain(center,skipGi,count,minD,maxD){
+  const pos=EXP.positions;if(!pos)return [];
+  const N=pos.length/3,used=new Set();if(skipGi!=null)used.add(skipGi);
+  const min2=minD*minD,max2=maxD*maxD,chain=[];
+  let cx=center.x,cy=center.y,cz=center.z;
+  for(let step=0;step<count;step++){
+    let best=-1,bd=Infinity;
+    for(let i=0;i<N;i++){
+      if(used.has(i))continue;
+      const dx=pos[i*3]-cx,dy=pos[i*3+1]-cy,dz=pos[i*3+2]-cz,d=dx*dx+dy*dy+dz*dz;
+      if(d<min2||d>max2)continue;
+      if(d<bd){bd=d;best=i;}
+    }
+    if(best<0)break;
+    used.add(best);chain.push(best);
+    cx=pos[best*3];cy=pos[best*3+1];cz=pos[best*3+2];
+  }
+  return chain;
+}
 function clearConstellation(){
   const E=EXP;
+  if(E.constRAF){cancelAnimationFrame(E.constRAF);E.constRAF=null;}
   if(E.constIv){clearInterval(E.constIv);E.constIv=null;}
   if(E.constLine){E.scene.remove(E.constLine);E.constLine.geometry.dispose();E.constLine.material.dispose();E.constLine=null;}
   if(E.constNodes){E.constNodes.children.forEach(o=>o.material.dispose());E.scene.remove(E.constNodes);E.constNodes=null;}
 }
-function drawConstellation(center,ci){
+function drawConstellation(center,ci,centerGi){
   const E=EXP;
   clearConstellation();
-  const pts=[center.clone()];let cur=center.clone();
-  for(let k=0;k<5;k++){
-    cur=cur.clone().add(new THREE.Vector3((h1(ci*9+k,31)-.5)*26,(h1(ci*9+k,32)-.5)*12,(h1(ci*9+k,33)-.5)*26));
-    pts.push(cur);
-  }
+  /* real neighbouring stars (loosen the search once if the region is sparse) */
+  let idxs=neighbourChain(center,centerGi,5,8,48);
+  if(idxs.length<2)idxs=neighbourChain(center,centerGi,5,4,110);
+  const nodes=[{pos:center.clone(),style:null}];
+  idxs.forEach(idx=>{
+    const p=new THREE.Vector3(E.positions[idx*3],E.positions[idx*3+1],E.positions[idx*3+2]);
+    nodes.push({pos:p,style:constStarStyle(starInfo(idx,p).status)});
+  });
+  if(nodes.length<2)return; /* nothing nearby — leave the lone selected star lit */
+
+  const pts=nodes.map(n=>n.pos.clone());
   const g=new THREE.BufferGeometry().setFromPoints(pts);
   g.setDrawRange(0,1);
-  E.constLine=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xe7c878,transparent:true,opacity:.8,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}));
+  /* a luminous "line of light" that grows from the chosen star outward */
+  E.constLine=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfff1de,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}));
   E.scene.add(E.constLine);
-  /* a glowing star at each vertex so the chosen star reads as linked to its
-     neighbours; each node lights up as the connecting line reaches it. The
-     chosen star (node 0) stays gold; the connected neighbours each get a random
-     colour so the constellation looks like a cluster of varied stars. */
+
+  /* a glowing star sprite at each neighbour vertex (node 0 is the chosen star,
+     already lit by its own marker); each glows in its own availability colour
+     and fades in as the travelling light reaches it */
   E.constNodes=new THREE.Group();
-  const nodeTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.7)');
-  pts.forEach((pt,i)=>{
-    const tint=new THREE.Color().setHSL(h1(ci*9+i,41),0.7,0.62); /* deterministic-random hue per neighbour */
-    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:nodeTex,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,color:i===0?0xffe9b0:tint}));
-    s.position.copy(pt);const sz=i===0?0:1.4;s.scale.set(sz,sz,1); /* node 0 is the chosen star (lit by its own marker) */
+  const nodeTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.55)');
+  nodes.forEach((nd,i)=>{
+    const st=nd.style||{color:0xffffff,base:0,op:0};
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:nodeTex,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,color:st.color}));
+    s.position.copy(nd.pos);
+    s.userData={base:i===0?0:st.base,op:i===0?0:st.op}; /* node 0 stays invisible */
+    s.scale.set(0.01,0.01,1);
     E.constNodes.add(s);
   });
   E.scene.add(E.constNodes);
-  let n=1;E.constIv=setInterval(()=>{n++;g.setDrawRange(0,n);
-    const node=E.constNodes&&E.constNodes.children[n-1];
-    if(node)node.material.opacity=.95;
-    if(n>=pts.length)clearInterval(E.constIv);},260);
+
+  /* smooth, eased growth: a head point travels segment-by-segment along the
+     chain; the polyline behind it is pinned to exact vertices each frame */
+  const segCount=nodes.length-1,SEG=560 /* ms per hop */,arr=g.attributes.position.array;
+  const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  const line=E.constLine,t0=performance.now();
+  (function grow(){
+    if(EXP.constLine!==line)return; /* superseded or cleared */
+    const el=performance.now()-t0,p=Math.min(el/SEG,segCount);
+    line.material.opacity=Math.min(.7,el/260*.7);
+    const seg=Math.min(Math.floor(p),segCount-1),frac=ease(Math.min(1,p-seg));
+    const a=pts[seg],b=pts[seg+1];
+    for(let k=0;k<=seg;k++){arr[k*3]=pts[k].x;arr[k*3+1]=pts[k].y;arr[k*3+2]=pts[k].z;}
+    const head=seg+1;
+    arr[head*3]=a.x+(b.x-a.x)*frac;arr[head*3+1]=a.y+(b.y-a.y)*frac;arr[head*3+2]=a.z+(b.z-a.z)*frac;
+    g.attributes.position.needsUpdate=true;g.setDrawRange(0,head+1);
+    for(let k=1;k<=seg;k++){const nd=E.constNodes.children[k];if(nd)nd.material.opacity=nd.userData.op;}
+    const tgt=E.constNodes.children[head];if(tgt)tgt.material.opacity=tgt.userData.op*frac;
+    if(p<segCount){E.constRAF=requestAnimationFrame(grow);}
+    else{const last=E.constNodes.children[segCount];if(last)last.material.opacity=last.userData.op;E.constRAF=null;}
+  })();
 }
 function closeDetail(backOut=true){
   const E=EXP;
@@ -2644,16 +2710,17 @@ function loop(){
   if(E.choAn){E.choAn.material.size=4.08*(0.35+0.65*sizeFade);E.choAn.material.opacity=.98*fade;}
   /* selected-star marker: solid glowing point + halo, gently pulsing */
   if(E.selMarker&&E.selMarker.visible){
-    const pulse=1+Math.sin(now*0.005)*.16;
+    const pulse=1+Math.sin(now*0.005)*.16,core=E.selCore||1,glow=E.selGlow||1;
     const sc=THREE.MathUtils.clamp(z*0.16,2.2,7)*pulse;
-    E.selMarker.scale.set(sc,sc,1);
+    E.selMarker.scale.set(sc*core,sc*core,1);
     E.selMarker.material.opacity=Math.min(.97,E.selMarker.material.opacity+0.05*dt);
-    E.selHalo.scale.set(sc*2.8,sc*2.8,1);
-    E.selHalo.material.opacity=Math.min(.55,E.selHalo.material.opacity+0.03*dt)*(.7+.3*Math.sin(now*0.004));
+    E.selHalo.scale.set(sc*2.8*glow,sc*2.8*glow,1);
+    E.selHalo.material.opacity=Math.min(.55*glow,E.selHalo.material.opacity+0.03*dt)*(.7+.3*Math.sin(now*0.004));
   }
-  /* constellation node stars gently pulse so the links feel alive */
-  if(E.constNodes){const ps=1.4*(1+Math.sin(now*0.005)*.13);
-    E.constNodes.children.forEach((nd,idx)=>{if(idx>0)nd.scale.set(ps,ps,1);});}
+  /* constellation node stars gently pulse so the links feel alive (each keeps
+     its own status-based base size — featured neighbours read larger/brighter) */
+  if(E.constNodes){const pm=1+Math.sin(now*0.005)*.13;
+    E.constNodes.children.forEach((nd,idx)=>{if(idx>0){const b=nd.userData.base||1.4;nd.scale.set(b*pm,b*pm,1);}});}
 
   /* distant stars shimmer slowly and the whole field revolves gently around
      the galaxy — both time-based, so inherently smooth */
