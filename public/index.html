@@ -215,6 +215,74 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .warp-text{position:absolute;inset:0;display:grid;place-items:center;z-index:6;pointer-events:none}
 .warp-text div{font-family:var(--display);font-size:clamp(1.3rem,3vw,2rem);font-style:italic;letter-spacing:.08em;color:var(--star);opacity:0;animation:warpline 2.8s ease forwards}
 @keyframes warpline{12%{opacity:1}70%{opacity:1}100%{opacity:0;letter-spacing:.25em}}
+
+/* ============ STAR LOADER · cinematic launch transition ============ */
+#starLoader{position:fixed;inset:0;z-index:300;display:none;opacity:0;overflow:hidden;
+  pointer-events:all;transition:opacity .45s ease;
+  background:radial-gradient(1200px 820px at 50% 46%,#10163a 0%,#080d22 40%,#03050f 76%,#010206 100%)}
+#starLoader.show{display:block}
+#starLoader.in{opacity:1}
+#starLoader.out{opacity:0;transition:opacity .55s ease}
+#slCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+.sl-stage{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:3;
+  width:min(78vw,380px);height:min(78vw,380px);display:grid;place-items:center;pointer-events:none}
+.sl-glow{position:absolute;width:128%;height:128%;border-radius:50%;opacity:0;transform:scale(.4);
+  background:radial-gradient(circle,rgba(242,220,162,.34),rgba(217,185,108,.13) 38%,transparent 66%)}
+.sl-const{position:absolute;width:122%;height:122%;overflow:visible;z-index:2;opacity:0}
+.sl-const polyline{fill:none;stroke:url(#slGold);stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;
+  filter:drop-shadow(0 0 4px rgba(242,220,162,.55));stroke-dasharray:340;stroke-dashoffset:340}
+.sl-const circle{fill:var(--gold-bright);opacity:0;filter:drop-shadow(0 0 3px rgba(242,220,162,.8))}
+.sl-logo{position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:.55rem;
+  opacity:0;will-change:transform,opacity,filter}
+.sl-mark{width:clamp(52px,12vw,76px);height:auto;filter:drop-shadow(0 0 16px rgba(242,220,162,.6))}
+.sl-word{font-family:var(--display);letter-spacing:.42em;text-indent:.42em;font-weight:500;
+  font-size:clamp(1.5rem,5.4vw,2.5rem);color:var(--star);text-shadow:0 0 26px rgba(242,220,162,.5)}
+.sl-sub{font-size:.6rem;letter-spacing:.42em;text-indent:.42em;text-transform:uppercase;color:var(--gold);opacity:.85}
+.sl-fact{position:absolute;left:50%;bottom:clamp(7%,12vh,15%);transform:translateX(-50%);z-index:4;
+  width:min(86vw,560px);text-align:center;opacity:0;
+  font-family:var(--display);font-style:italic;font-size:clamp(1.02rem,2.6vw,1.34rem);line-height:1.5;color:var(--star)}
+.sl-fact .lab{display:block;font-style:normal;font-size:.6rem;letter-spacing:.34em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:.7rem;opacity:.9}
+.sl-flash{position:absolute;inset:0;z-index:5;opacity:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 46%,#fff,rgba(242,220,162,.5) 30%,transparent 60%)}
+
+/* the .play state drives the ~3s timeline (re-added each launch to replay) */
+#starLoader.play .sl-glow{animation:slGlow 3s cubic-bezier(.22,.61,.36,1) forwards}
+#starLoader.play .sl-const{animation:slConst 3s ease forwards}
+#starLoader.play .sl-const polyline{animation:slDraw 1.05s cubic-bezier(.7,0,.3,1) forwards;animation-delay:1s}
+#starLoader.play .sl-const circle{animation:slNode .5s ease forwards}
+#starLoader.play .sl-logo{animation:slLogo 3s cubic-bezier(.22,.61,.36,1) forwards}
+#starLoader.play .sl-fact{animation:slFact 3s ease forwards}
+#starLoader.play .sl-flash{animation:slFlash 3s ease forwards}
+#starLoader.play .sl-const circle:nth-of-type(1){animation-delay:1.0s}
+#starLoader.play .sl-const circle:nth-of-type(2){animation-delay:1.15s}
+#starLoader.play .sl-const circle:nth-of-type(3){animation-delay:1.3s}
+#starLoader.play .sl-const circle:nth-of-type(4){animation-delay:1.5s}
+#starLoader.play .sl-const circle:nth-of-type(5){animation-delay:1.7s}
+#starLoader.play .sl-const circle:nth-of-type(6){animation-delay:1.85s}
+#starLoader.play .sl-const circle:nth-of-type(7){animation-delay:2.0s}
+
+@keyframes slGlow{0%{opacity:0;transform:scale(.35)}26%{opacity:.92;transform:scale(1)}
+  62%{opacity:.7;transform:scale(1.05)}72%{opacity:1;transform:scale(1.16)}80%{opacity:.72;transform:scale(1.05)}
+  100%{opacity:.95;transform:scale(2.7)}}
+@keyframes slConst{0%,30%{opacity:0}46%{opacity:.9}66%{opacity:.9}100%{opacity:0}}
+@keyframes slDraw{to{stroke-dashoffset:0}}
+@keyframes slNode{to{opacity:1}}
+@keyframes slLogo{0%{opacity:0;transform:scale(.82);filter:blur(9px)}
+  26%{opacity:1;transform:scale(1);filter:blur(0)}70%{opacity:1;transform:scale(1.02)}
+  74%{transform:scale(1.08)}80%{transform:scale(1.01)}100%{opacity:0;transform:scale(2.25);filter:blur(3px)}}
+@keyframes slFact{0%{opacity:0;transform:translate(-50%,14px)}22%{opacity:1;transform:translate(-50%,0)}
+  78%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-10px)}}
+@keyframes slFlash{0%,84%{opacity:0}93%{opacity:.92}100%{opacity:0}}
+
+/* reduced motion: a calm, static reveal — no warp, orbit, or flash */
+#starLoader.rm .sl-glow{opacity:.7;transform:scale(1)}
+#starLoader.rm .sl-const{opacity:.55}
+#starLoader.rm .sl-const polyline{stroke-dashoffset:0}
+#starLoader.rm .sl-const circle{opacity:1}
+#starLoader.rm .sl-logo{opacity:1}
+#starLoader.rm .sl-fact{opacity:1}
+#starLoader.rm .sl-flash{display:none}
 /* detail panel */
 .detail{position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);background:linear-gradient(195deg,rgba(13,16,38,.92),rgba(6,8,20,.95));border-left:1px solid var(--glass-brd);backdrop-filter:blur(20px);z-index:10;transform:translateX(105%);transition:transform .65s cubic-bezier(.2,.8,.2,1);pointer-events:auto;overflow-y:auto;padding:1.6rem 1.8rem 2rem}
 .detail.on{transform:none}
@@ -873,6 +941,30 @@ footer a:hover{color:var(--gold)}
 <div class="toast" id="toast" role="status">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
   <div id="toastText">Star reserved.</div>
+</div>
+
+<!-- ============ STAR LOADER (cinematic launch transition) ============ -->
+<div id="starLoader" aria-hidden="true">
+  <canvas id="slCanvas"></canvas>
+  <div class="sl-stage">
+    <div class="sl-glow"></div>
+    <svg class="sl-const" viewBox="0 0 200 200" aria-hidden="true">
+      <defs><linearGradient id="slGold" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#F2DCA2"/><stop offset="1" stop-color="#D9B96C"/></linearGradient></defs>
+      <polyline points="34,78 70,44 118,34 162,70 150,120 100,156 52,132"/>
+      <circle cx="34" cy="78" r="2.6"/><circle cx="70" cy="44" r="2.6"/><circle cx="118" cy="34" r="2.6"/>
+      <circle cx="162" cy="70" r="2.6"/><circle cx="150" cy="120" r="2.6"/><circle cx="100" cy="156" r="2.6"/>
+      <circle cx="52" cy="132" r="2.6"/>
+    </svg>
+    <div class="sl-logo">
+      <svg class="sl-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" stroke="#F2DCA2" stroke-width="1" fill="rgba(242,220,162,.18)"/></svg>
+      <div class="sl-word">ASTRALIS</div>
+      <div class="sl-sub">Celestial Registry</div>
+    </div>
+  </div>
+  <div class="sl-fact" id="slFact"></div>
+  <div class="sl-flash"></div>
 </div>
 
 <!-- ============ GALAXY EXPLORER ============ -->
@@ -2372,11 +2464,158 @@ function enterExplorer(launchZoom){
      browser allows audio); the Ambience button still lets them switch it off */
   setAmbience(true);
 }
+/* ============ CINEMATIC LAUNCH TRANSITION ============
+   A ~3s premium "travel across the universe" sequence shown after the user taps
+   "Name a Star", before the Star Explorer. Vanilla JS + Canvas + GPU-accelerated
+   CSS (the app is dependency-free, so no Framer Motion). It honours reduced
+   motion, blocks interaction, and preloads the galaxy mid-animation so the
+   explorer appears with zero loading delay. */
+const SPACE_FACTS=[
+  'A single teaspoon of a neutron star would weigh about six billion tonnes.',
+  'There are more stars in the universe than grains of sand on every beach on Earth.',
+  'The light from some stars you see tonight left them thousands of years ago.',
+  'Most of the gold on Earth was forged in the collision of two neutron stars.',
+  'The largest known star, UY Scuti, could swallow more than five billion Suns.',
+  'A day on Venus lasts longer than a whole year on Venus.',
+  'Saturn is so light it would float if you could find an ocean big enough.',
+  'The Sun makes up 99.8% of all the mass in our solar system.',
+  'Light takes just over eight minutes to travel from the Sun to your eyes.',
+  'There may be more planets than stars in the Milky Way — billions of them.',
+  'Neutron stars can spin more than 600 times every single second.',
+  'Betelgeuse is so vast it would engulf Jupiter if placed where the Sun is.',
+  'The observable universe stretches about 93 billion light-years across.',
+  'Astronomers estimate two trillion galaxies in the observable universe.',
+  'The footprints left on the Moon could last a hundred million years.',
+  'Jupiter’s Great Red Spot is a storm wider than the whole of Earth.'
+];
+
+/* Canvas FX layer: a deep-space starfield that twinkles, sprouts orbiting gold
+   particles + distant shooting stars, then accelerates into a forward warp. */
+function startLoaderFX(canvas){
+  const ctx=canvas.getContext('2d');
+  const DPR=Math.min(devicePixelRatio||1,2);
+  let W,H,cx,cy,maxR,raf=0,running=true;
+  const t0=performance.now();
+  function resize(){
+    W=canvas.width=Math.round(innerWidth*DPR);H=canvas.height=Math.round(innerHeight*DPR);
+    canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';
+    cx=W/2;cy=H*0.46;maxR=Math.hypot(Math.max(cx,W-cx),Math.max(cy,H-cy))*1.05;
+  }
+  resize();addEventListener('resize',resize);
+  const N=Math.min(800,Math.max(120,Math.floor((W*H)/(7000*DPR))));
+  const stars=[];
+  for(let i=0;i<N;i++){
+    const c=Math.random();
+    stars.push({ang:Math.random()*6.2832,rad:Math.random()*maxR,d:0.25+Math.random()*0.75,
+      r:(0.6+Math.random()*1.7)*DPR,tw:Math.random()*6.2832,
+      col:c<0.82?'255,248,232':(c<0.91?'255,234,196':'210,226,255')});
+  }
+  const orbs=[];for(let i=0;i<10;i++)orbs.push({ang:Math.random()*6.2832,
+    rad:(64+Math.random()*46)*DPR,sp:(0.5+Math.random()*0.5)*(Math.random()<.5?-1:1),
+    r:(1+Math.random()*1.7)*DPR});
+  const shoot=[];let nextShoot=900;
+  function frame(now){
+    if(!running)return;
+    const el=now-t0;
+    const appear=Math.min(1,el/700);
+    const warp=el<=2000?0:Math.min(1,(el-2000)/900),ease=warp*warp;
+    ctx.clearRect(0,0,W,H);
+    /* starfield (twinkling dots → radial streaks during warp) */
+    for(const s of stars){
+      if(warp>0)s.rad+=ease*(3.2+(1-s.d)*9)*DPR;
+      else s.rad+=Math.sin(now*0.0002+s.tw)*0.04*DPR;
+      if(s.rad>maxR){s.rad=Math.random()*maxR*0.05;s.ang=Math.random()*6.2832;}
+      const ca=Math.cos(s.ang),sa=Math.sin(s.ang),x=cx+ca*s.rad,y=cy+sa*s.rad;
+      const a=appear*(0.55+0.45*Math.sin(now*0.004+s.tw))*(0.5+0.5*s.d);
+      if(warp>0){
+        const len=ease*(s.rad*0.16+(1-s.d)*60*DPR);
+        ctx.strokeStyle='rgba('+s.col+','+a.toFixed(3)+')';ctx.lineWidth=s.r*0.9;
+        ctx.beginPath();ctx.moveTo(cx+ca*(s.rad-len),cy+sa*(s.rad-len));ctx.lineTo(x,y);ctx.stroke();
+      }else{
+        ctx.fillStyle='rgba('+s.col+','+a.toFixed(3)+')';
+        ctx.beginPath();ctx.arc(x,y,s.r,0,6.2832);ctx.fill();
+      }
+    }
+    /* gold particles orbiting the logo (phase 2), flung outward during warp */
+    const orbA=Math.max(0,Math.min(1,(el-1000)/400));
+    if(orbA>0){
+      for(const o of orbs){
+        o.ang+=o.sp*0.016;const rad=o.rad+ease*240*DPR;
+        const x=cx+Math.cos(o.ang)*rad,y=cy+Math.sin(o.ang)*rad*0.62;
+        ctx.fillStyle='rgba(242,220,162,'+(orbA*0.9).toFixed(3)+')';
+        ctx.beginPath();ctx.arc(x,y,o.r,0,6.2832);ctx.fill();
+        ctx.fillStyle='rgba(242,220,162,'+(orbA*0.16).toFixed(3)+')';
+        ctx.beginPath();ctx.arc(x,y,o.r*3,0,6.2832);ctx.fill();
+      }
+    }
+    /* distant shooting stars (phase 2 only) */
+    if(el>900&&el<2100&&now>nextShoot){nextShoot=now+240+Math.random()*340;
+      shoot.push({x:W*(0.1+Math.random()*0.8),y:H*(0.04+Math.random()*0.22),
+        vx:(4+Math.random()*4)*DPR*(Math.random()<.5?1:-1),vy:(2.4+Math.random()*2)*DPR,life:0});}
+    for(let i=shoot.length-1;i>=0;i--){const m=shoot[i];m.life+=16;m.x+=m.vx;m.y+=m.vy;
+      const a=(1-Math.min(1,m.life/700))*0.9*(1-warp);
+      if(a<=0||m.life>800){shoot.splice(i,1);continue;}
+      const tx=m.x-m.vx*6,ty=m.y-m.vy*6,g=ctx.createLinearGradient(tx,ty,m.x,m.y);
+      g.addColorStop(0,'rgba(242,220,162,0)');g.addColorStop(1,'rgba(255,248,232,'+a.toFixed(3)+')');
+      ctx.strokeStyle=g;ctx.lineWidth=1.6*DPR;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(m.x,m.y);ctx.stroke();}
+    /* the logo blooms into a celestial beacon as the warp begins */
+    const beacon=Math.max(0,(el-1900)/1100);
+    if(beacon>0){const r=(40+beacon*beacon*440)*DPR,g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+      g.addColorStop(0,'rgba(255,252,240,'+Math.min(.9,beacon*0.9).toFixed(3)+')');
+      g.addColorStop(.25,'rgba(242,220,162,'+Math.min(.6,beacon*0.5).toFixed(3)+')');
+      g.addColorStop(1,'rgba(242,220,162,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,r,0,6.2832);ctx.fill();}
+    raf=requestAnimationFrame(frame);
+  }
+  raf=requestAnimationFrame(frame);
+  return {stop(){running=false;cancelAnimationFrame(raf);removeEventListener('resize',resize);}};
+}
+
+/* re-arm the CSS timeline so it replays on every launch */
+function retriggerLoaderAnims(sl){sl.classList.remove('play');void sl.offsetWidth;sl.classList.add('play');}
+
+/* Orchestrate the sequence, then hand off seamlessly to the explorer. */
+function runStarLoader(done){
+  const sl=$('#starLoader');
+  $('#slFact').innerHTML='<span class="lab">Did you know</span>'+SPACE_FACTS[Math.random()*SPACE_FACTS.length|0];
+  sl.classList.remove('out','rm','play');
+  sl.classList.add('show');
+  document.body.style.overflow='hidden';
+  const preload=()=>{if(!EXP.inited){try{buildGalaxy();}catch(e){console.error('[loader] preload failed',e);}}};
+
+  if(reduceMotion){
+    sl.classList.add('rm');
+    requestAnimationFrame(()=>sl.classList.add('in'));
+    preload();
+    setTimeout(()=>{done();sl.classList.add('out');
+      setTimeout(()=>sl.classList.remove('show','in','out','rm'),600);},1500);
+    return;
+  }
+
+  const fx=startLoaderFX($('#slCanvas'));
+  retriggerLoaderAnims(sl);
+  requestAnimationFrame(()=>sl.classList.add('in'));
+  /* preload the galaxy ~0.5s in — the hitch hides behind the starfield */
+  setTimeout(preload,520);
+  /* start the explorer dolly-in beneath the loader so the warp reads continuous */
+  setTimeout(()=>done(),2680);
+  /* cross-fade the loader out over the now-travelling galaxy */
+  setTimeout(()=>sl.classList.add('out'),2880);
+  setTimeout(()=>{fx.stop();sl.classList.remove('show','in','out','play');},3400);
+}
+
 /* public entry: every explorer launch smoothly zooms the camera into the galaxy */
 function openExplorer(){
   if(EXP._launching)return;
   EXP._launching=true;
   enterExplorer(true);
+}
+/* "Name a Star" entry: play the cinematic transition, then enter the explorer */
+function openExplorerCinematic(){
+  if(EXP._launching)return;
+  EXP._launching=true;
+  runStarLoader(()=>enterExplorer(true));
 }
 function closeExplorer(){
   const ex=$('#explorer');
@@ -2384,10 +2623,14 @@ function closeExplorer(){
   setTimeout(()=>{ex.classList.remove('open');},800);
   document.body.style.overflow='';
   cancelAnimationFrame(EXP.raf);EXP.raf=null;EXP.phase='idle';
+  /* clear the launch guard: it is normally reset by the arrive-tween callback,
+     but exiting cancels the loop before that fires — without this, leaving the
+     explorer early would permanently block every "Name a Star"/launch button. */
+  EXP._launching=false;
   if(EXP.audio&&EXP.audio.on)setAmbience(false);
 }
 $('#expClose').addEventListener('click',()=>closeExplorer());
-$$('[data-launch]').forEach(b=>b.addEventListener('click',openExplorer));
+$$('[data-launch]').forEach(b=>b.addEventListener('click',openExplorerCinematic));
 
 /* ---------- registry search (name lookup, partial + case-insensitive) ---------- */
 (function(){
