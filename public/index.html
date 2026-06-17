@@ -1569,7 +1569,7 @@ const LY_PER_UNIT=19.2;
 function starInfo(i,pos){
   const id='AST-'+String(100000+(i*7919)%900000);
   const r=h1(i,1);
-  const status=r<0.20?'reserved':(r>0.985?'featured':'available');
+  const status=r<0.12?'reserved':(r>0.985?'featured':'available');
   const spec=SPECTRAL[Math.floor(h1(i,2)*SPECTRAL.length)];
   const mag=(1.2+h1(i,3)*11).toFixed(2);
   const dist=Math.round(6+pos.distanceTo(EARTH_POS)*LY_PER_UNIT);
