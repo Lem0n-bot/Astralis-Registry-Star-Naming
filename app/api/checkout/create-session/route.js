@@ -8,6 +8,7 @@
 import { getStripe } from '../../../lib/stripe';
 import { validateOrderInput, PACKAGES, CURRENCY } from '../../../lib/catalog';
 import { createOrder, attachSession } from '../../../lib/orders';
+import { putOrder as putSnapshot } from '../../../lib/store.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -70,5 +71,8 @@ export async function POST(req) {
   }
 
   attachSession(order.id, session.id);
+  // Persist a durable copy so fulfilment works even if the webhook lands on a
+  // cold/other serverless instance (and so KV-backed deploys survive restarts).
+  try { await putSnapshot(order); } catch (e) { console.error('[create-session] snapshot persist failed', e?.message); }
   return Response.json({ url: session.url, orderNo: order.orderNo });
 }

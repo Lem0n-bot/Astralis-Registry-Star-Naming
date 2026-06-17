@@ -101,10 +101,32 @@ export default function CheckoutSuccess() {
               </div>
             )}
 
+            {!!(data.certificates && data.certificates.length) && (
+              <div style={styles.certs}>
+                {data.certificates.map((c, i) => (
+                  <a key={i} href={c.pdfUrl} style={styles.certBtn}>
+                    <span aria-hidden="true">⤓</span> Download “{c.name}” — PDF
+                  </a>
+                ))}
+              </div>
+            )}
+
             <p style={styles.next}>
-              Printed keepsakes ship within Australia. You can safely close this page — everything is on its way.
+              {(data.certificates && data.certificates.length)
+                ? 'Your certificates are attached to the email and downloadable above. Printed keepsakes ship within Australia.'
+                : 'Printed keepsakes ship within Australia. You can safely close this page — everything is on its way.'}
             </p>
-            <a href="/" style={styles.btnGold}>Back to Astralis</a>
+
+            {data.portalUrl ? (
+              <>
+                <a href={data.portalUrl} style={styles.btnGold}>
+                  View &amp; download your certificate{(data.items?.length || 0) > 1 ? 's' : ''}
+                </a>
+                <a href="/" style={styles.btnGhost}>Back to Astralis</a>
+              </>
+            ) : (
+              <a href="/" style={styles.btnGold}>Back to Astralis</a>
+            )}
           </>
         )}
       </div>
@@ -147,6 +169,12 @@ const styles = {
   li: { display: 'flex', flexDirection: 'column', gap: 2, padding: '10px 0', borderTop: '1px solid rgba(255,255,255,.07)' },
   total: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '8px 0 4px', paddingTop: 14, borderTop: '1px solid rgba(217,185,108,.3)' },
   next: { color: C.mute, fontSize: 12.5, lineHeight: 1.6, margin: '18px 0 22px' },
+  certs: { display: 'grid', gap: 10, margin: '18px 0 4px' },
+  certBtn: {
+    display: 'block', padding: '12px 16px', borderRadius: 12, textDecoration: 'none',
+    border: '1px solid rgba(217,185,108,0.3)', background: 'rgba(217,185,108,0.06)',
+    color: C.goldBright, fontSize: 14, textAlign: 'left',
+  },
   btnGold: {
     display: 'inline-block', width: '100%', boxSizing: 'border-box', padding: '14px 0', borderRadius: 999,
     background: `linear-gradient(135deg, ${C.goldBright}, ${C.gold})`, color: '#1a1405', fontWeight: 600, textDecoration: 'none',

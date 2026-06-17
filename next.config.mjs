@@ -30,6 +30,12 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false, // hide X-Powered-By
 
+  // Chromium + puppeteer-core ship a native binary — keep them external so Next
+  // does not try to bundle them into the serverless function.
+  experimental: {
+    serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+  },
+
   async headers() {
     return [
       {

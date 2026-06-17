@@ -77,6 +77,8 @@ export function validateOrderInput(body) {
       msg: STR(it.msg, 200),
       theme: it.theme === 'ivory' ? 'ivory' : 'midnight',
       cons,
+      // star-map seed (matches the live preview the buyer personalised)
+      seed: Number.isFinite(+it.seed) ? ((Math.floor(+it.seed) % 1000) + 1000) % 1000 : null,
       star: {
         id: STR(it.id, 30),
         ra: STR(it.ra, 30),
