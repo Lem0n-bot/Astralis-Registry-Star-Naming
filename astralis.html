@@ -217,78 +217,78 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 @keyframes warpline{12%{opacity:1}70%{opacity:1}100%{opacity:0;letter-spacing:.25em}}
 
 /* ============ STAR LOADER · constellation-charting transition ============
-   Logo on top; a Cassiopeia "W" charts itself star-by-star in the lower half
-   (the two never overlap). Dark, nebula-tinted sky with edge-weighted glimmering
-   stars + random shooting stars (canvas). The build is CSS-driven for a
-   guaranteed-smooth 60fps; total runtime is randomised ~5–7s. */
+   Logo on top; several small constellations chart themselves around it — each
+   lights a star, then a light-beam draws to the next, and on to the next. Deep,
+   nebula-rich sky with edge-weighted glimmering stars + random shooting stars
+   (canvas). The build is JS-sequenced (.lit per element); long phase-in/out. */
 #starLoader{position:fixed;inset:0;z-index:300;display:none;opacity:0;overflow:hidden;
-  pointer-events:all;transition:opacity .5s ease;
+  pointer-events:all;transition:opacity 1.1s ease;                 /* long phase-in */
   background:
-    radial-gradient(900px 620px at 22% 26%,rgba(99,78,200,.16),transparent 60%),   /* nebula bloom */
-    radial-gradient(820px 560px at 80% 74%,rgba(150,98,214,.12),transparent 62%),   /* nebula bloom */
-    radial-gradient(760px 520px at 58% 12%,rgba(217,185,108,.06),transparent 60%),  /* faint gold haze */
-    radial-gradient(1300px 1000px at 50% 50%,#060a18 0%,#03050f 46%,#01020a 78%,#000103 100%)} /* darker base */
+    radial-gradient(820px 600px at 16% 20%,rgba(96,72,205,.22),transparent 60%),   /* nebula */
+    radial-gradient(780px 560px at 84% 26%,rgba(132,84,200,.18),transparent 62%),  /* nebula */
+    radial-gradient(940px 680px at 72% 82%,rgba(104,70,196,.19),transparent 60%),  /* nebula */
+    radial-gradient(700px 540px at 24% 84%,rgba(150,98,214,.15),transparent 62%),  /* nebula */
+    radial-gradient(620px 460px at 50% 50%,rgba(217,185,108,.05),transparent 60%), /* faint gold haze */
+    radial-gradient(1500px 1150px at 50% 46%,#04060f 0%,#020308 48%,#010105 78%,#000002 100%)} /* near-black */
 #starLoader.show{display:block}
 #starLoader.in{opacity:1}
-#starLoader.out{opacity:0;transition:opacity .6s ease}
+#starLoader.out{opacity:0;transition:opacity 1.2s ease}            /* long phase-out */
 #slCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:1}
 
-/* logo sits on top; constellation sits lower — the two never overlap */
+/* logo sits on top; the constellations are scattered around it, never overlapping */
 .sl-logo{position:absolute;left:50%;top:26%;z-index:4;transform:translateX(-50%);opacity:0;
   display:flex;flex-direction:column;align-items:center;gap:.55rem;text-align:center;
-  filter:drop-shadow(0 0 10px rgba(242,220,162,.35));transition:filter .9s ease;
+  filter:drop-shadow(0 0 10px rgba(242,220,162,.35));transition:filter 1s ease;
   will-change:transform,opacity,filter}
 .sl-mark{width:clamp(48px,11vw,70px);height:auto}
 .sl-word{font-family:var(--display);letter-spacing:.4em;text-indent:.4em;font-weight:500;
   font-size:clamp(1.5rem,5.4vw,2.4rem);color:var(--star);text-shadow:0 0 22px rgba(242,220,162,.45)}
 .sl-sub{font-size:.62rem;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);opacity:0}
-.sl-const-wrap{position:absolute;left:50%;top:54%;z-index:3;transform:translateX(-50%);
-  width:min(80vw,540px);pointer-events:none}
-.sl-figure{display:block;width:100%;height:auto;overflow:visible;transform-origin:50% 50%;transition:filter 1s ease}
-.sl-line{stroke-dasharray:112;stroke-dashoffset:112;filter:drop-shadow(0 0 3px rgba(242,220,162,.5))}
+
+/* a small constellation, absolutely placed (left/top set inline per instance) */
+.sl-cst{position:absolute;z-index:3;width:min(26vw,176px);pointer-events:none;
+  transform-origin:50% 50%;transition:filter 1.1s ease}
+.sl-cst svg{display:block;width:100%;height:auto;overflow:visible}
+.sl-line{stroke-dasharray:100;stroke-dashoffset:100;opacity:.92;filter:drop-shadow(0 0 3px rgba(242,220,162,.5))}
 .sl-star{opacity:0;transform-box:fill-box;transform-origin:center;filter:drop-shadow(0 0 3px rgba(242,220,162,.85))}
 
-/* the .play state drives the charting timeline (re-added each launch) */
-#starLoader.play .sl-logo{animation:slLogoIn .8s cubic-bezier(.2,.7,.3,1) forwards}
-#starLoader.play .sl-sub{animation:slSub 1.2s ease .45s forwards}
-#starLoader.play .sl-star{animation:slStar .9s cubic-bezier(.2,.7,.3,1) forwards,slPulse 2.8s ease-in-out infinite}
-#starLoader.play .sl-line{animation:slDraw .6s cubic-bezier(.65,0,.35,1) forwards}
-/* sequential build: each star (entrance,then pulse) then its incoming line */
-#starLoader.play .s1{animation-delay:.9s,1.8s}
-#starLoader.play .s2{animation-delay:1.7s,2.6s}
-#starLoader.play .s3{animation-delay:2.5s,3.4s}
-#starLoader.play .s4{animation-delay:3.3s,4.2s}
-#starLoader.play .s5{animation-delay:4.1s,5.0s}
-#starLoader.play .l1{animation-delay:1.4s}
-#starLoader.play .l2{animation-delay:2.2s}
-#starLoader.play .l3{animation-delay:3.0s}
-#starLoader.play .l4{animation-delay:3.8s}
+/* logo + subtitle phase in (the .play class is re-added each launch) */
+#starLoader.play .sl-logo{animation:slLogoIn 1.2s cubic-bezier(.2,.7,.3,1) forwards}
+#starLoader.play .sl-sub{animation:slSub 1.4s ease .6s forwards}
 
-/* completion (added by JS once the figure is charted): logo brightens, the
-   finished constellation glows and drifts very slowly until the hand-off */
+/* JS lights each element in sequence: star pops + glimmers, beam draws bright→gold */
+.sl-star.lit{animation:slStar 1s cubic-bezier(.2,.7,.3,1) forwards,slPulse 2.8s ease-in-out 1s infinite}
+.sl-line.lit{animation:slBeam .8s cubic-bezier(.6,0,.35,1) forwards}
+
+/* completion (added by JS once charted): logo brightens; constellations glow + drift */
 #starLoader.complete .sl-logo{filter:drop-shadow(0 0 22px rgba(242,220,162,.72))}
-#starLoader.complete .sl-figure{filter:drop-shadow(0 0 14px rgba(242,220,162,.55))}
-#starLoader.complete:not(.rm) .sl-figure{animation:slDrift 90s linear infinite}
+#starLoader.complete .sl-cst{filter:drop-shadow(0 0 12px rgba(242,220,162,.5))}
+#starLoader.complete:not(.rm) .sl-cst{animation:slDrift 120s linear infinite}
+#starLoader.complete:not(.rm) .sl-cst:nth-of-type(even){animation-direction:reverse}
 
 @keyframes slLogoIn{0%{opacity:0;transform:translateX(-50%) scale(.9)}60%{opacity:1}
   100%{opacity:1;transform:translateX(-50%) scale(1)}}
 @keyframes slSub{from{opacity:0;transform:translateY(8px)}to{opacity:.9;transform:translateY(0)}}
 @keyframes slStar{
   0%{opacity:0;transform:scale(.2);filter:drop-shadow(0 0 2px rgba(242,220,162,.6))}
-  55%{opacity:1;transform:scale(1.5);filter:drop-shadow(0 0 10px rgba(255,247,230,1))} /* bright flash */
-  78%{transform:scale(.92)}
+  55%{opacity:1;transform:scale(1.55);filter:drop-shadow(0 0 11px rgba(255,247,230,1))} /* bright flash */
+  78%{transform:scale(.9)}
   100%{opacity:1;transform:scale(1);filter:drop-shadow(0 0 3px rgba(242,220,162,.85))}} /* settle */
 @keyframes slPulse{0%,100%{filter:drop-shadow(0 0 2.5px rgba(242,220,162,.7))}
   50%{filter:drop-shadow(0 0 6px rgba(242,220,162,1))}}
-@keyframes slDraw{from{stroke-dashoffset:112}to{stroke-dashoffset:0}}
+/* the connecting light beam: a bright white-gold streak that draws then settles */
+@keyframes slBeam{
+  0%{stroke-dashoffset:100;stroke-width:2.4;filter:drop-shadow(0 0 7px rgba(255,247,230,.95))}
+  70%{stroke-width:1.7;filter:drop-shadow(0 0 5px rgba(255,240,205,.8))}
+  100%{stroke-dashoffset:0;stroke-width:1.5;filter:drop-shadow(0 0 3px rgba(242,220,162,.6))}}
 @keyframes slDrift{to{transform:rotate(360deg)}}
 
-/* reduced motion: present the finished constellation calmly, no build/drift */
+/* reduced motion: present the finished constellations calmly, no build/drift */
 #starLoader.rm .sl-logo{opacity:1;transform:translateX(-50%);animation:none}
 #starLoader.rm .sl-sub{opacity:.9;animation:none}
 #starLoader.rm .sl-star{opacity:1;transform:none;animation:none}
 #starLoader.rm .sl-line{stroke-dashoffset:0;animation:none}
-#starLoader.rm .sl-figure{animation:none}
+#starLoader.rm .sl-cst{animation:none}
 /* detail panel */
 .detail{position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);background:linear-gradient(195deg,rgba(13,16,38,.92),rgba(6,8,20,.95));border-left:1px solid var(--glass-brd);backdrop-filter:blur(20px);z-index:10;transform:translateX(105%);transition:transform .65s cubic-bezier(.2,.8,.2,1);pointer-events:auto;overflow-y:auto;padding:1.6rem 1.8rem 2rem}
 .detail.on{transform:none}
@@ -952,6 +952,13 @@ footer a:hover{color:var(--gold)}
 <!-- ============ STAR LOADER (constellation-charting transition) ============ -->
 <div id="starLoader" aria-hidden="true">
   <canvas id="slCanvas"></canvas>
+  <!-- shared gradients for every constellation -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="slGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F2DCA2"/><stop offset="1" stop-color="#D9B96C"/></linearGradient>
+    <radialGradient id="slStarG">
+      <stop offset="0" stop-color="#FFF7E6"/><stop offset="55%" stop-color="#F2DCA2"/><stop offset="100%" stop-color="#D9B96C"/></radialGradient>
+  </defs></svg>
   <!-- logo on top -->
   <div class="sl-logo">
     <svg class="sl-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -959,28 +966,62 @@ footer a:hover{color:var(--gold)}
     <div class="sl-word">ASTRALIS</div>
     <div class="sl-sub">Charting Your Celestial Journey</div>
   </div>
-  <!-- constellation below the logo: the "W" of Cassiopeia, charted star-by-star -->
-  <div class="sl-const-wrap">
-    <svg class="sl-figure" viewBox="0 0 360 160" aria-hidden="true">
-      <defs>
-        <linearGradient id="slGold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#F2DCA2"/><stop offset="1" stop-color="#D9B96C"/></linearGradient>
-        <radialGradient id="slStarG">
-          <stop offset="0" stop-color="#FFF7E6"/><stop offset="55%" stop-color="#F2DCA2"/><stop offset="100%" stop-color="#D9B96C"/></radialGradient>
-      </defs>
-      <!-- connections drawn first so the star points sit on top of the line ends -->
+  <!-- small constellations scattered around the logo; data-step = reveal order
+       (star, then the beam to the next star, then on to the next) -->
+  <div class="sl-cst" style="left:5%;top:30%">
+    <svg viewBox="0 0 140 110" aria-hidden="true">
       <g fill="none" stroke="url(#slGold)" stroke-width="1.5" stroke-linecap="round">
-        <line class="sl-line l1" x1="26" y1="64" x2="100" y2="118"/>
-        <line class="sl-line l2" x1="100" y1="118" x2="178" y2="50"/>
-        <line class="sl-line l3" x1="178" y1="50" x2="256" y2="116"/>
-        <line class="sl-line l4" x1="256" y1="116" x2="338" y2="92"/>
+        <line class="sl-line" data-step="1" pathLength="100" x1="12" y1="40" x2="46" y2="86"/>
+        <line class="sl-line" data-step="3" pathLength="100" x1="46" y1="86" x2="82" y2="30"/>
+        <line class="sl-line" data-step="5" pathLength="100" x1="82" y1="30" x2="124" y2="72"/>
       </g>
       <g fill="url(#slStarG)">
-        <circle class="sl-star s1" cx="26" cy="64" r="3.6"/>
-        <circle class="sl-star s2" cx="100" cy="118" r="3.2"/>
-        <circle class="sl-star s3" cx="178" cy="50" r="4.4"/>
-        <circle class="sl-star s4" cx="256" cy="116" r="3.2"/>
-        <circle class="sl-star s5" cx="338" cy="92" r="3.8"/>
+        <circle class="sl-star" data-step="0" cx="12" cy="40" r="3.4"/>
+        <circle class="sl-star" data-step="2" cx="46" cy="86" r="3"/>
+        <circle class="sl-star" data-step="4" cx="82" cy="30" r="3.8"/>
+        <circle class="sl-star" data-step="6" cx="124" cy="72" r="3.2"/>
+      </g>
+    </svg>
+  </div>
+  <div class="sl-cst" style="left:72%;top:18%">
+    <svg viewBox="0 0 140 110" aria-hidden="true">
+      <g fill="none" stroke="url(#slGold)" stroke-width="1.5" stroke-linecap="round">
+        <line class="sl-line" data-step="1" pathLength="100" x1="20" y1="24" x2="112" y2="42"/>
+        <line class="sl-line" data-step="3" pathLength="100" x1="112" y1="42" x2="60" y2="98"/>
+        <line class="sl-line" data-step="5" pathLength="100" x1="60" y1="98" x2="20" y2="24"/>
+      </g>
+      <g fill="url(#slStarG)">
+        <circle class="sl-star" data-step="0" cx="20" cy="24" r="3.6"/>
+        <circle class="sl-star" data-step="2" cx="112" cy="42" r="3.2"/>
+        <circle class="sl-star" data-step="4" cx="60" cy="98" r="3.4"/>
+      </g>
+    </svg>
+  </div>
+  <div class="sl-cst" style="left:9%;top:62%">
+    <svg viewBox="0 0 140 110" aria-hidden="true">
+      <g fill="none" stroke="url(#slGold)" stroke-width="1.5" stroke-linecap="round">
+        <line class="sl-line" data-step="1" pathLength="100" x1="16" y1="28" x2="40" y2="72"/>
+        <line class="sl-line" data-step="3" pathLength="100" x1="40" y1="72" x2="88" y2="92"/>
+        <line class="sl-line" data-step="5" pathLength="100" x1="88" y1="92" x2="126" y2="54"/>
+      </g>
+      <g fill="url(#slStarG)">
+        <circle class="sl-star" data-step="0" cx="16" cy="28" r="3.2"/>
+        <circle class="sl-star" data-step="2" cx="40" cy="72" r="3.6"/>
+        <circle class="sl-star" data-step="4" cx="88" cy="92" r="3"/>
+        <circle class="sl-star" data-step="6" cx="126" cy="54" r="3.6"/>
+      </g>
+    </svg>
+  </div>
+  <div class="sl-cst" style="left:64%;top:66%">
+    <svg viewBox="0 0 140 110" aria-hidden="true">
+      <g fill="none" stroke="url(#slGold)" stroke-width="1.5" stroke-linecap="round">
+        <line class="sl-line" data-step="1" pathLength="100" x1="18" y1="72" x2="70" y2="50"/>
+        <line class="sl-line" data-step="3" pathLength="100" x1="70" y1="50" x2="122" y2="30"/>
+      </g>
+      <g fill="url(#slStarG)">
+        <circle class="sl-star" data-step="0" cx="18" cy="72" r="3.4"/>
+        <circle class="sl-star" data-step="2" cx="70" cy="50" r="3.6"/>
+        <circle class="sl-star" data-step="4" cx="122" cy="30" r="3.2"/>
       </g>
     </svg>
   </div>
@@ -2579,38 +2620,51 @@ function startLoaderStars(canvas,reduced){
   return {stop(){running=false;cancelAnimationFrame(raf);removeEventListener('resize',resize);}};
 }
 
-/* re-arm the CSS timeline so the constellation rebuilds on every launch */
-function retriggerLoaderAnims(sl){sl.classList.remove('play');void sl.offsetWidth;sl.classList.add('play');}
+/* scheduled timers for one loader run, so a relaunch can cancel cleanly */
+let loaderTimers=[];
+function clearLoaderTimers(){loaderTimers.forEach(clearTimeout);loaderTimers=[];}
+function later(fn,ms){loaderTimers.push(setTimeout(fn,ms));}
+
+/* Chart each constellation star-by-star: light a star, draw the beam to the next,
+   then on to the next. Constellations start in a cascade so the whole sky fills. */
+function chartConstellations(sl){
+  const STAGGER=650,STEP=300;            /* between constellations / between steps */
+  [...sl.querySelectorAll('.sl-cst')].forEach((cst,ci)=>{
+    const els=[...cst.querySelectorAll('[data-step]')].sort((a,b)=>(+a.dataset.step)-(+b.dataset.step));
+    els.forEach((el,i)=>later(()=>el.classList.add('lit'),ci*STAGGER+i*STEP));
+  });
+}
 
 /* Orchestrate the sequence, then hand off seamlessly to the explorer. */
 function runStarLoader(done){
   const sl=$('#starLoader');
+  clearLoaderTimers();
   sl.classList.remove('out','rm','play','complete');
+  sl.querySelectorAll('.lit').forEach(el=>el.classList.remove('lit')); /* reset for replay */
   sl.classList.add('show');
   document.body.style.overflow='hidden';
   const preload=()=>{if(!EXP.inited){try{buildGalaxy();}catch(e){console.error('[loader] preload failed',e);}}};
   const fx=startLoaderStars($('#slCanvas'),reduceMotion);
 
   if(reduceMotion){
-    sl.classList.add('rm','complete');
+    sl.classList.add('rm','complete');                 /* show finished constellations calmly */
     requestAnimationFrame(()=>sl.classList.add('in'));
     preload();
-    setTimeout(()=>{done();sl.classList.add('out');
-      setTimeout(()=>{fx.stop();sl.classList.remove('show','in','out','rm','complete');},650);},1600);
+    later(()=>{done();sl.classList.add('out');
+      later(()=>{fx.stop();sl.classList.remove('show','in','out','rm','complete');},1300);},1900);
     return;
   }
 
-  const total=5000+Math.random()*2000;                     /* randomly ~5–7s */
-  retriggerLoaderAnims(sl);
+  const total=5500+Math.random()*2000;                 /* randomly ~5.5–7.5s */
+  void sl.offsetWidth;                                  /* reflow so .play replays on relaunch */
+  sl.classList.add('play');                            /* long phase-in of the logo + subtitle */
   requestAnimationFrame(()=>sl.classList.add('in'));
-  /* preload the galaxy ~0.5s in — any build hitch hides behind the fade-in */
-  setTimeout(preload,520);
-  /* the figure finishes charting ~4.4s in; brighten + glow, then drift */
-  setTimeout(()=>sl.classList.add('complete'),4500);
-  /* once complete, begin the explorer dolly-in beneath us, then cross-fade out */
-  setTimeout(()=>done(),total-250);
-  setTimeout(()=>sl.classList.add('out'),total-100);
-  setTimeout(()=>{fx.stop();sl.classList.remove('show','in','out','play','complete');},total+650);
+  later(preload,520);                                  /* preload the galaxy behind the fade-in */
+  chartConstellations(sl);                             /* star → beam → star, across the sky */
+  later(()=>sl.classList.add('complete'),4400);        /* logo brightens; figures glow + drift */
+  later(()=>done(),total-700);                         /* explorer dolly-in begins beneath us */
+  later(()=>sl.classList.add('out'),total-700);        /* long cross-fade over the galaxy */
+  later(()=>{fx.stop();sl.classList.remove('show','in','out','play','complete');},total+700);
 }
 
 /* public entry: every explorer launch smoothly zooms the camera into the galaxy */
