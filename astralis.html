@@ -217,10 +217,11 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 @keyframes warpline{12%{opacity:1}70%{opacity:1}100%{opacity:0;letter-spacing:.25em}}
 
 /* ============ STAR LOADER · constellation-charting transition ============
-   One randomly-chosen real constellation charts itself above a large, centred
-   Astralis logo — a star lights, a golden beam draws to the next, and so on,
-   acting as the loading indicator. A "Did you know?" astronomy fact sits at the
-   foot. Deep, nebula-rich sky; the build is JS-sequenced (.lit per element). */
+   One randomly-chosen complex constellation charts itself above a large, centred
+   Astralis logo. The stars sit greyed (the figure's outline); then star-by-star
+   a golden beam draws between them and the reached star lights + pulses — the
+   build IS the loading bar. On completion a starlight surge sweeps every path.
+   Deep nebula sky; build is JS-sequenced via .lit; long phase-in/out; 5–8s. */
 #starLoader{position:fixed;inset:0;z-index:300;display:none;opacity:0;overflow:hidden;
   pointer-events:all;transition:opacity 1.1s ease;                 /* long phase-in */
   background:
@@ -236,24 +237,31 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 #slCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:1}
 
 /* one constellation, centred above the logo */
-.sl-cst{position:absolute;left:50%;top:11%;z-index:3;transform:translateX(-50%);
-  width:min(62vw,370px);pointer-events:none}
+.sl-cst{position:absolute;left:50%;top:9%;z-index:3;transform:translateX(-50%);
+  width:min(54vw,320px);pointer-events:none}
 .sl-cst svg{display:block;width:100%;height:auto;overflow:visible;transform-origin:50% 50%;transition:filter 1.1s ease}
-.sl-line{stroke-dasharray:100;stroke-dashoffset:100;opacity:.92;filter:drop-shadow(0 0 3px rgba(242,220,162,.5))}
-.sl-star{opacity:0;transform-box:fill-box;transform-origin:center;filter:drop-shadow(0 0 3px rgba(242,220,162,.85))}
+/* connections start hidden (drawn via stroke-dashoffset; --len is the exact
+   geometric length, set inline per line so the draw always completes cleanly) */
+.sl-line{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);
+  filter:drop-shadow(0 0 3px rgba(242,220,162,.4))}
+/* stars sit greyed until the beam reaches them, then light gold + pulse */
+.sl-star{fill:#5b6479;opacity:.5;transform-box:fill-box;transform-origin:center}
+/* the completion starlight surge — a bright sweep along every path (hidden until then) */
+.sl-surge{fill:none;stroke:#FFFBEA;stroke-width:2.6;stroke-linecap:round;opacity:0;pointer-events:none;
+  stroke-dasharray:var(--len);stroke-dashoffset:var(--len);filter:drop-shadow(0 0 7px rgba(255,250,230,.95))}
 
 /* large, centred logo */
-.sl-logo{position:absolute;left:50%;top:52%;z-index:4;transform:translate(-50%,-50%);opacity:0;
-  display:flex;flex-direction:column;align-items:center;gap:.6rem;text-align:center;
+.sl-logo{position:absolute;left:50%;top:55%;z-index:4;transform:translate(-50%,-50%);opacity:0;
+  display:flex;flex-direction:column;align-items:center;gap:.55rem;text-align:center;
   filter:drop-shadow(0 0 12px rgba(242,220,162,.35));transition:filter 1s ease;
   will-change:transform,opacity,filter}
-.sl-mark{width:clamp(56px,13vw,86px);height:auto}
+.sl-mark{width:clamp(52px,12vw,78px);height:auto}
 .sl-word{font-family:var(--display);letter-spacing:.42em;text-indent:.42em;font-weight:500;
-  font-size:clamp(1.7rem,6vw,2.9rem);color:var(--star);text-shadow:0 0 26px rgba(242,220,162,.5)}
+  font-size:clamp(1.6rem,5.6vw,2.7rem);color:var(--star);text-shadow:0 0 26px rgba(242,220,162,.5)}
 .sl-sub{font-size:.64rem;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);opacity:0}
 
-/* "Did you know?" fact at the foot */
-.sl-fact{position:absolute;left:50%;bottom:clamp(6%,9vh,12%);transform:translateX(-50%);z-index:4;
+/* "Did you know?" fact at the foot — visible the whole time */
+.sl-fact{position:absolute;left:50%;bottom:clamp(5%,8vh,11%);transform:translateX(-50%);z-index:4;
   width:min(86vw,580px);text-align:center;opacity:0}
 .sl-fact b{display:block;font-family:var(--display);font-size:.66rem;font-weight:600;letter-spacing:.3em;
   text-transform:uppercase;color:var(--gold);margin-bottom:.6rem}
@@ -265,39 +273,48 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 #starLoader.play .sl-sub{animation:slSub 1.4s ease .6s forwards}
 #starLoader.play .sl-fact{animation:slFact 1.4s ease .8s forwards}
 
-/* JS lights each element in sequence: star pops + glimmers, beam draws bright→gold */
+/* JS lights each element in sequence: beam draws bright→gold, star greys→gold+pulse */
+.sl-line.lit{animation:slBeam .85s cubic-bezier(.6,0,.35,1) forwards}
 .sl-star.lit{animation:slStar 1s cubic-bezier(.2,.7,.3,1) forwards,slPulse 2.8s ease-in-out 1s infinite}
-.sl-line.lit{animation:slBeam .8s cubic-bezier(.6,0,.35,1) forwards}
 
-/* completion (added by JS once charted): logo brightens; constellation glows + drifts */
-#starLoader.complete .sl-logo{filter:drop-shadow(0 0 24px rgba(242,220,162,.75))}
-#starLoader.complete .sl-cst svg{filter:drop-shadow(0 0 13px rgba(242,220,162,.55))}
+/* completion: logo brightens; constellation glows brighter as a whole + drifts;
+   a starlight surge sweeps each path (staggered via inline animation-delay) */
+#starLoader.complete .sl-logo{filter:drop-shadow(0 0 26px rgba(242,220,162,.8))}
+#starLoader.complete .sl-cst svg{filter:drop-shadow(0 0 15px rgba(242,220,162,.6))}
+#starLoader.complete .sl-line{filter:drop-shadow(0 0 6px rgba(242,220,162,.85))}
 #starLoader.complete:not(.rm) .sl-cst svg{animation:slDrift 110s linear infinite}
+#starLoader.complete:not(.rm) .sl-surge{animation-name:slSurge;animation-duration:.8s;
+  animation-timing-function:ease-out;animation-fill-mode:forwards}
 
 @keyframes slLogoIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.9)}60%{opacity:1}
   100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @keyframes slSub{from{opacity:0;transform:translateY(8px)}to{opacity:.9;transform:translateY(0)}}
 @keyframes slFact{from{opacity:0;transform:translate(-50%,10px)}to{opacity:.96;transform:translate(-50%,0)}}
+/* a star greying-in to gold: a bright pop, then settle to a steady gold glow */
 @keyframes slStar{
-  0%{opacity:0;transform:scale(.2);filter:drop-shadow(0 0 2px rgba(242,220,162,.6))}
-  55%{opacity:1;transform:scale(1.55);filter:drop-shadow(0 0 11px rgba(255,247,230,1))} /* bright flash */
-  78%{transform:scale(.9)}
-  100%{opacity:1;transform:scale(1);filter:drop-shadow(0 0 3px rgba(242,220,162,.85))}} /* settle */
-@keyframes slPulse{0%,100%{filter:drop-shadow(0 0 2.5px rgba(242,220,162,.7))}
-  50%{filter:drop-shadow(0 0 6px rgba(242,220,162,1))}}
-/* the connecting light beam: a bright white-gold streak that draws then settles */
+  0%{opacity:.5;fill:#5b6479;transform:scale(1);filter:drop-shadow(0 0 0 rgba(242,220,162,0))}
+  35%{opacity:1;fill:#FFF7E6;transform:scale(1.7);filter:drop-shadow(0 0 12px rgba(255,247,230,1))} /* pulse bright */
+  100%{opacity:1;fill:#F2DCA2;transform:scale(1);filter:drop-shadow(0 0 4px rgba(242,220,162,.9))}} /* settle gold */
+/* connected stars keep a subtle living glow */
+@keyframes slPulse{0%,100%{filter:drop-shadow(0 0 3px rgba(242,220,162,.7))}
+  50%{filter:drop-shadow(0 0 7px rgba(242,220,162,1))}}
+/* the connecting beam visibly draws from one star to the next, then settles */
 @keyframes slBeam{
-  0%{stroke-dashoffset:100;stroke-width:2.4;filter:drop-shadow(0 0 7px rgba(255,247,230,.95))}
-  70%{stroke-width:1.7;filter:drop-shadow(0 0 5px rgba(255,240,205,.8))}
-  100%{stroke-dashoffset:0;stroke-width:1.5;filter:drop-shadow(0 0 3px rgba(242,220,162,.6))}}
+  0%{stroke-dashoffset:var(--len);stroke-width:2.7;filter:drop-shadow(0 0 8px rgba(255,247,230,.95))}
+  70%{stroke-width:1.9;filter:drop-shadow(0 0 5px rgba(255,240,205,.8))}
+  100%{stroke-dashoffset:0;stroke-width:1.7;filter:drop-shadow(0 0 3px rgba(242,220,162,.6))}}
+/* a wave of starlight sweeping along a finished path */
+@keyframes slSurge{0%{opacity:0;stroke-dashoffset:var(--len)}
+  22%{opacity:.9}100%{opacity:0;stroke-dashoffset:calc(var(--len) * -1)}}
 @keyframes slDrift{to{transform:rotate(360deg)}}
 
-/* reduced motion: present the finished constellation calmly, no build/drift */
+/* reduced motion: present the finished constellation calmly, no build/surge/drift */
 #starLoader.rm .sl-logo{opacity:1;transform:translate(-50%,-50%);animation:none}
 #starLoader.rm .sl-sub{opacity:.9;animation:none}
 #starLoader.rm .sl-fact{opacity:.96;animation:none}
-#starLoader.rm .sl-star{opacity:1;transform:none;animation:none}
+#starLoader.rm .sl-star{opacity:1;fill:#F2DCA2;transform:none;animation:none;filter:drop-shadow(0 0 4px rgba(242,220,162,.85))}
 #starLoader.rm .sl-line{stroke-dashoffset:0;animation:none}
+#starLoader.rm .sl-surge{display:none}
 #starLoader.rm .sl-cst svg{animation:none}
 /* detail panel */
 .detail{position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);background:linear-gradient(195deg,rgba(13,16,38,.92),rgba(6,8,20,.95));border-left:1px solid var(--glass-brd);backdrop-filter:blur(20px);z-index:10;transform:translateX(105%);transition:transform .65s cubic-bezier(.2,.8,.2,1);pointer-events:auto;overflow-y:auto;padding:1.6rem 1.8rem 2rem}
@@ -2580,91 +2597,181 @@ let loaderTimers=[];
 function clearLoaderTimers(){loaderTimers.forEach(clearTimeout);loaderTimers=[];}
 function later(fn,ms){loaderTimers.push(setTimeout(fn,ms));}
 
-/* Roster of real constellations, each a single sequential path of stars [x,y]
-   within its own viewBox. One is chosen at random per launch, so repeat visits
-   chart a different sky. Connections run star0→star1→star2… in order. */
+/* Roster of complex, recognisable constellations. Each is a set of stars [x,y(,r)]
+   in its own viewBox plus an ordered list of edges [i,j] (the connection paths,
+   authored in drawing order). One is chosen at random per launch. */
 const SL_CONSTS=[
-  {name:'Cassiopeia',       vb:[220,110], stars:[[22,42],[66,82],[110,36],[154,80],[198,34]]},
-  {name:'The Plough',       vb:[220,120], stars:[[196,52],[160,42],[126,46],[90,52],[92,94],[40,86],[38,40]]},
-  {name:'Corona Borealis',  vb:[220,110], stars:[[28,82],[48,56],[80,42],[112,38],[144,44],[174,60],[196,86]]},
-  {name:'Lyra',             vb:[160,130], stars:[[40,26],[78,42],[120,54],[110,96],[54,76]]},
-  {name:'Orion',            vb:[200,150], stars:[[60,30],[124,26],[122,74],[103,80],[84,86],[70,124],[140,118]]},
-  {name:'Scorpius',         vb:[220,150], stars:[[30,24],[50,42],[70,60],[92,80],[112,102],[138,116],[162,124],[184,116]]},
-  {name:'The Little Dipper',vb:[210,130], stars:[[36,34],[60,52],[88,66],[116,82],[156,92],[160,52],[120,66]]},
-  {name:'Boötes',           vb:[170,150], stars:[[84,128],[112,86],[96,40],[58,52],[52,92]]},
+  {name:'Orion', vb:[210,170],
+   stars:[[70,42,4.4],[136,40],[103,22],[122,94],[103,98],[84,102],[128,146],[78,150,4.2]],
+   edges:[[0,1],[1,3],[3,4],[4,5],[5,0],[3,6],[5,7],[0,2],[2,1]]},
+  {name:'Cassiopeia', vb:[230,120],
+   stars:[[24,42],[70,88],[116,46],[164,90],[208,40]],
+   edges:[[0,1],[1,2],[2,3],[3,4]]},
+  {name:'Cygnus', vb:[220,165],
+   stars:[[110,18,4.2],[110,76],[110,150],[44,90],[176,64],[202,48],[18,104]],
+   edges:[[0,1],[1,2],[1,4],[4,5],[1,3],[3,6]]},
+  {name:'Ursa Major', vb:[220,120],
+   stars:[[34,40,4],[36,86],[88,94],[86,54],[122,46],[158,42],[196,52]],
+   edges:[[0,1],[1,2],[2,3],[3,0],[3,4],[4,5],[5,6]]},
+  {name:'Scorpius', vb:[210,165],
+   stars:[[28,30],[16,52],[50,44],[74,64,4.4],[96,86],[112,108],[130,126],[154,134],[178,126]],
+   edges:[[0,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[2,1]]},
+  {name:'Leo', vb:[230,135],
+   stars:[[40,112,4.3],[52,88],[64,62],[58,42],[80,32],[98,46],[152,52],[204,68],[150,100]],
+   edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[2,6],[6,7],[7,8],[8,0]]},
+  {name:'Perseus', vb:[200,150],
+   stars:[[108,52,4],[70,94],[50,124],[96,88],[140,72],[168,54],[122,26],[86,40]],
+   edges:[[0,1],[1,2],[0,3],[3,1],[0,4],[4,5],[0,6],[6,7]]},
+  {name:'Canis Major', vb:[210,160],
+   stars:[[84,62,4.6],[52,54],[70,40],[112,88],[124,116],[98,134],[156,124],[146,72]],
+   edges:[[0,1],[0,2],[0,3],[3,4],[4,5],[4,6],[3,7]]},
 ];
 
-/* A large database of concise astronomy facts (readable in ~3s), one shown at
-   random each launch. Stars · planets · galaxies · constellations · black holes
-   · space exploration · astronomy history. */
+/* 100+ concise astronomy facts (readable in ~3s); one shown at random per launch.
+   Stars · planets · galaxies · black holes · constellations · exploration · history. */
 const SPACE_FACTS=[
-  'Venus is the only planet in our solar system that rotates clockwise.',
   'A neutron star can spin hundreds of times every second.',
-  'The light from Sirius takes about 8.6 years to reach Earth.',
   'A teaspoon of neutron-star material would weigh about a billion tonnes.',
   'Most stars in the universe are red dwarfs — cooler and dimmer than our Sun.',
   'The Sun is so large that about 1.3 million Earths could fit inside it.',
-  'Betelgeuse is so vast it would reach past Jupiter if it replaced our Sun.',
+  'Betelgeuse is so vast it would engulf Jupiter if it replaced our Sun.',
   'The largest known star, UY Scuti, could swallow billions of Suns.',
   'Our Sun is roughly halfway through its 10-billion-year lifetime.',
   'Stars twinkle because their light bends through Earth’s shifting atmosphere.',
+  'The light from Sirius takes about 8.6 years to reach Earth.',
+  'Sirius, the brightest night star, is actually a system of two stars.',
+  'The Sun loses about 4 million tonnes of mass every second as it shines.',
+  'Proxima Centauri, our nearest neighbour star, is still 4.2 light-years away.',
+  'A star’s colour reveals its temperature — blue is hotter than red.',
+  'The Sun’s core burns at about 15 million degrees Celsius.',
+  'When a massive star dies, a supernova can briefly outshine a whole galaxy.',
+  'About half the stars you see at night are secretly pairs or multiples.',
+  'Rigel in Orion shines roughly 120,000 times brighter than the Sun.',
+  'Red supergiants are the largest stars, yet they live only a few million years.',
+  'Some dying stars crystallise into diamonds the size of a planet.',
+  'The nearest star to Earth is, of course, our own Sun.',
+  'Venus is the only planet in our solar system that rotates clockwise.',
   'A day on Venus lasts longer than a whole year on Venus.',
   'Jupiter’s Great Red Spot is a storm wider than the entire Earth.',
   'Saturn is so light it would float if you could find a big enough ocean.',
   'Mars is home to Olympus Mons, the tallest volcano in the solar system.',
-  'A single year on Neptune lasts 165 Earth years.',
-  'Mercury has ice hiding in craters that never see sunlight.',
+  'A single year on Neptune lasts about 165 Earth years.',
+  'Mercury hides ice in craters that never see sunlight.',
   'Jupiter is so massive it could contain all the other planets combined.',
   'Uranus rolls around the Sun tipped almost completely on its side.',
   'Scientists believe it rains diamonds deep inside Neptune and Uranus.',
+  'Mars looks red because its soil is rich in rusted iron.',
+  'Venus is the hottest planet — even hotter than Mercury — thanks to its thick air.',
+  'Saturn’s rings are made mostly of countless chunks of ice.',
+  'A year on Mercury is just 88 Earth days.',
+  'Neptune was discovered through mathematics before it was ever seen.',
+  'Earth is the only planet not named after a Greek or Roman god.',
+  'The winds on Neptune can blow faster than the speed of sound.',
+  'Jupiter has at least 95 known moons.',
   'The Milky Way contains an estimated 100 to 400 billion stars.',
-  'Our galaxy is on a slow collision course with Andromeda — in 4 billion years.',
-  'There may be more galaxies in the universe than people who have ever lived.',
+  'Our galaxy is on a slow collision course with Andromeda in 4 billion years.',
+  'There may be more galaxies than people who have ever lived on Earth.',
   'The Milky Way is about 100,000 light-years across.',
   'Andromeda is the most distant object visible to the naked eye.',
   'Most large galaxies hide a supermassive black hole at their core.',
-  'There are 88 officially recognised constellations in the sky.',
-  'Orion’s belt is three stars: Alnitak, Alnilam, and Mintaka.',
-  'The Southern Cross appears on the flags of several nations.',
-  'Cassiopeia is named after a boastful queen of Greek myth.',
-  'Ursa Major holds the Big Dipper, one of the sky’s most famous shapes.',
+  'Our solar system takes about 230 million years to orbit the galaxy once.',
+  'The observable universe holds an estimated two trillion galaxies.',
+  'When galaxies collide, their stars almost never crash into each other.',
+  'The Milky Way belongs to a vast supercluster called Laniakea.',
+  'Spiral galaxies like ours have graceful arms of gas, dust, and stars.',
+  'Dwarf galaxies orbit the Milky Way like moths around a lamp.',
   'Nothing, not even light, can escape a black hole’s event horizon.',
   'Time slows dramatically as you approach a black hole.',
   'The first-ever image of a black hole was captured in 2019.',
   'Supermassive black holes can weigh billions of times more than the Sun.',
   'Falling into a black hole would stretch you out like spaghetti.',
+  'The Milky Way’s central black hole is called Sagittarius A*.',
+  'Black holes are not cosmic vacuums — you can orbit one safely from afar.',
+  'A spinning black hole drags space-time around with it.',
+  'When black holes merge, they ripple space-time with gravitational waves.',
+  'Light bends so sharply near a black hole you can glimpse its far side.',
+  'There are 88 officially recognised constellations in the sky.',
+  'Orion’s belt is three stars: Alnitak, Alnilam, and Mintaka.',
+  'The Southern Cross appears on the flags of several nations.',
+  'Cassiopeia is named after a boastful queen of Greek myth.',
+  'Ursa Major holds the Big Dipper, one of the sky’s most famous shapes.',
+  'Scorpius really does look like a scorpion — curved stinger and all.',
+  'Polaris, the North Star, marks the tip of the Little Dipper’s handle.',
+  'Cygnus the Swan flies along the bright band of the Milky Way.',
+  'Leo is one of the few constellations that resembles its namesake.',
+  'Sagittarius points its arrow toward the centre of our galaxy.',
+  'Perseus holds Algol, the eerie “Demon Star” that visibly dims and brightens.',
+  'Ancient cultures saw wholly different pictures in the very same stars.',
+  'Draco the Dragon winds its way between the two Dippers.',
   'Voyager 1 is the most distant human-made object from Earth.',
   'The footprints left on the Moon could last 100 million years.',
   'Space is silent — sound has no way to travel through a vacuum.',
   'The International Space Station orbits the Earth every 90 minutes.',
   'Astronauts can grow up to 5 cm taller in microgravity.',
   'It took the Apollo astronauts about three days to reach the Moon.',
+  'More than 6,000 working satellites now circle the Earth.',
+  'The Hubble Space Telescope has orbited Earth since 1990.',
+  'The James Webb telescope can see light from the universe’s first galaxies.',
+  'Only twelve people have ever walked on the Moon.',
+  'Sunlight takes about 8 minutes and 20 seconds to reach the Earth.',
+  'A rocket must reach roughly 28,000 km/h to stay in orbit.',
+  'Voyager carries a golden record of sounds and images from Earth.',
+  'The first creatures launched into orbit included fruit flies and a dog.',
   'Galileo first spotted Jupiter’s moons through a telescope in 1610.',
   'For millennia, sailors navigated the oceans using only the stars.',
   'Edwin Hubble proved other galaxies exist beyond our own in the 1920s.',
   'The word “planet” comes from the Greek for “wanderer”.',
   'Halley’s Comet sweeps past Earth roughly every 76 years.',
   'Pluto was reclassified as a dwarf planet in 2006.',
-  'Light travels about 9.5 trillion kilometres in a single year.',
-  'The observable universe is about 93 billion light-years across.',
+  'Copernicus placed the Sun, not the Earth, at the centre in 1543.',
+  'Kepler discovered that planets orbit in ellipses, not perfect circles.',
+  'The first planet around a Sun-like star was discovered in 1995.',
+  'Newton explained the orbits of the planets with a single law of gravity.',
+  'A light-year measures distance, not time — about 9.5 trillion kilometres.',
+  'Astronomy is one of the oldest sciences known to humankind.',
+  'Stonehenge may have been built to track the Sun through the seasons.',
+  'The Big Bang began our universe about 13.8 billion years ago.',
+  'Ancient astronomers charted the sky to build the first calendars.',
   'There are more stars in the sky than grains of sand on Earth’s beaches.',
   'Much of the gold on Earth was forged in ancient neutron-star collisions.',
+  'The observable universe is about 93 billion light-years across.',
   'If you could drive to the Sun, the trip would take over 150 years.',
-  'Saturn’s rings are made mostly of countless chunks of ice.',
   'The Sun makes up 99.8% of all the mass in our solar system.',
 ];
 
-/* Build the chosen constellation's SVG: star0, then beam→star1, beam→star2…
-   data-step sets the reveal order (star i = 2i, the beam into it = 2i-1). */
+/* Build the chosen constellation's SVG: greyed stars + hidden beams (each beam's
+   exact length is set inline as --len so the draw completes cleanly), plus a
+   matching "surge" line per path for the completion sweep (staggered by order). */
 function buildConstellationSVG(c){
-  const [w,h]=c.vb,S=c.stars;
-  const star=(p,stp,r)=>'<circle class="sl-star" data-step="'+stp+'" cx="'+p[0]+'" cy="'+p[1]+'" r="'+r+'"/>';
-  const beam=(a,b,stp)=>'<line class="sl-line" data-step="'+stp+'" pathLength="100" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>';
-  let lines='',stars=star(S[0],0,4);
-  for(let i=1;i<S.length;i++){lines+=beam(S[i-1],S[i],2*i-1);stars+=star(S[i],2*i,3.3);}
-  return '<svg viewBox="0 0 '+w+' '+h+'" aria-hidden="true">'+
-    '<g fill="none" stroke="url(#slGold)" stroke-width="1.6" stroke-linecap="round">'+lines+'</g>'+
-    '<g fill="url(#slStarG)">'+stars+'</g></svg>';
+  const [w,h]=c.vb;
+  let lines='',surge='';
+  c.edges.forEach((e,ei)=>{
+    const a=c.stars[e[0]],b=c.stars[e[1]];
+    const len=Math.hypot(b[0]-a[0],b[1]-a[1]).toFixed(1);
+    const co='x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"';
+    lines+='<line class="sl-line" id="slL'+ei+'" style="--len:'+len+'" '+co+'/>';
+    surge+='<line class="sl-surge" style="--len:'+len+';animation-delay:'+(ei*90)+'ms" '+co+'/>';
+  });
+  let stars='';
+  c.stars.forEach((p,i)=>{stars+='<circle class="sl-star" id="slS'+i+'" cx="'+p[0]+'" cy="'+p[1]+'" r="'+(p[2]||3.4)+'"/>';});
+  return '<svg viewBox="0 0 '+w+' '+h+'" aria-hidden="true">'
+    +'<g fill="none" stroke="#E9C97A" stroke-width="1.7" stroke-linecap="round">'+lines+'</g>'
+    +'<g>'+stars+'</g>'
+    +'<g>'+surge+'</g></svg>';
+}
+
+/* Reveal order: light the first star, then for each edge draw the beam and light
+   the star it reaches (branches just draw, since their stars are already lit). */
+function revealSequence(c){
+  const lit=new Set(),seq=[];
+  const first=c.edges.length?c.edges[0][0]:0;
+  seq.push({star:first});lit.add(first);
+  c.edges.forEach((e,ei)=>{
+    if(!lit.has(e[0])){seq.push({star:e[0]});lit.add(e[0]);}
+    seq.push({line:ei});
+    if(!lit.has(e[1])){seq.push({star:e[1]});lit.add(e[1]);}
+  });
+  return seq;
 }
 
 /* Orchestrate one loading screen: pick a constellation + fact, chart it star by
@@ -2673,7 +2780,7 @@ function runStarLoader(done){
   const sl=$('#starLoader'),slCst=$('#slCst');
   clearLoaderTimers();
   sl.classList.remove('out','rm','play','complete');
-  /* random constellation + random fact (fresh on every visit) */
+  /* random complex constellation + random fact (fresh on every visit) */
   const c=SL_CONSTS[Math.random()*SL_CONSTS.length|0];
   slCst.innerHTML=buildConstellationSVG(c);
   $('#slSub').textContent='Charting '+c.name;
@@ -2688,7 +2795,7 @@ function runStarLoader(done){
     requestAnimationFrame(()=>sl.classList.add('in'));
     preload();
     later(()=>{done();sl.classList.add('out');
-      later(()=>{fx.stop();sl.classList.remove('show','in','out','rm','complete');},1300);},2200);
+      later(()=>{fx.stop();sl.classList.remove('show','in','out','rm','complete');},1300);},2400);
     return;
   }
 
@@ -2698,13 +2805,15 @@ function runStarLoader(done){
   later(preload,520);                                  /* preload the galaxy behind the fade-in */
 
   /* chart the constellation one element at a time: star → beam → star → … */
-  const els=[...slCst.querySelectorAll('[data-step]')].sort((a,b)=>(+a.dataset.step)-(+b.dataset.step));
-  const STEP=270;
-  els.forEach((el,i)=>later(()=>el.classList.add('lit'),i*STEP));
-  const complete=(els.length-1)*STEP+900;              /* last reveal + settle */
-  const total=complete+900+Math.random()*1500;         /* hold on the finished sky, then hand off */
+  const seq=revealSequence(c),STEP=300;
+  seq.forEach((s,i)=>later(()=>{
+    const el=('star' in s)?slCst.querySelector('#slS'+s.star):slCst.querySelector('#slL'+s.line);
+    if(el)el.classList.add('lit');
+  },i*STEP));
+  const complete=(seq.length-1)*STEP+800;              /* last connection + a beat to settle */
+  const total=Math.min(8000,Math.max(5200,complete+700)+Math.random()*1100); /* 5–8s overall */
 
-  later(()=>sl.classList.add('complete'),complete);    /* constellation glows; logo brightens; drift */
+  later(()=>sl.classList.add('complete'),complete);    /* glow as a whole; logo brightens; surge */
   later(()=>done(),total);                             /* explorer dolly-in begins beneath us */
   later(()=>sl.classList.add('out'),total);            /* long cross-fade over the galaxy */
   later(()=>{fx.stop();sl.classList.remove('show','in','out','play','complete');},total+1300);
