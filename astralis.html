@@ -149,6 +149,9 @@ nav.scrolled{background:rgba(5,7,15,.78);backdrop-filter:blur(18px);-webkit-back
 .ct-sigimg{width:16cqw;height:6.4cqw;object-fit:cover;object-position:center 50%;display:block;margin:-.6cqw auto -.2cqw}
 .cert:not(.ivory) .ct-sigimg{filter:invert(1) brightness(1.18)}
 .ct-qr{display:flex;flex-direction:column;align-items:center;align-self:center;text-align:center}
+/* a small gold star centred directly above the Registry ID */
+.ct-idstar{display:block;width:3cqw;height:3cqw;margin-bottom:.7cqw;opacity:.92;filter:drop-shadow(0 0 .5cqw rgba(217,185,108,.5))}
+.ct-idstar svg{display:block;width:100%;height:100%}
 .ct-qr small{font-size:1.35cqw;letter-spacing:.3em;color:var(--cmut);text-transform:uppercase}
 .ct-qr .c-id{font-size:2cqw;letter-spacing:.16em;color:var(--cg2)}
 .ct-bottom{font-size:1.35cqw;letter-spacing:.24em;color:var(--cg);margin-top:1.4cqw;text-transform:uppercase;white-space:nowrap}
@@ -1729,37 +1732,47 @@ function certGalaxyTexture(ivory){
   if(ivory){g.addColorStop(0,'#F7F2E7');g.addColorStop(.5,'#F3EDDF');g.addColorStop(1,'#ECE4D0');}
   else{g.addColorStop(0,'#0D1228');g.addColorStop(.55,'#080C1C');g.addColorStop(1,'#0A0E22');}
   x.fillStyle=g;x.fillRect(0,0,620,1066);
+  /* fade a colour to its OWN transparent (never to transparent-black, which
+     interpolates through grey/black and leaves a dark "aura" on the ivory sheet) */
+  const fade=c=>c.replace(/[\d.]+\)\s*$/,'0)');
   /* nebula corner glows */
   const blobs=ivory?[[90,140,280,'rgba(168,140,228,.20)'],[500,90,230,'rgba(228,192,120,.22)'],[560,980,250,'rgba(160,135,220,.13)']]
                    :[[95,160,290,'rgba(140,110,220,.17)'],[520,95,210,'rgba(217,170,110,.11)'],[545,985,250,'rgba(120,95,210,.11)']];
-  blobs.forEach(b=>{const rg=x.createRadialGradient(b[0],b[1],0,b[0],b[1],b[2]);rg.addColorStop(0,b[3]);rg.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=rg;x.fillRect(0,0,620,1066);});
+  blobs.forEach(b=>{const rg=x.createRadialGradient(b[0],b[1],0,b[0],b[1],b[2]);rg.addColorStop(0,b[3]);rg.addColorStop(1,fade(b[3]));x.fillStyle=rg;x.fillRect(0,0,620,1066);});
   /* milky-way diagonal band up the left side */
-  const sc=ivory?'232,182,110':'255,222,172';
+  const sc=ivory?'242,198,116':'255,222,172';     /* brighter gold on ivory */
+  const mw=ivory?'rgba(200,168,230,.12)':'rgba(190,170,230,.09)';
   for(let i=0;i<26;i++){const t=Math.random(),bx=35+t*250+gauss()*45,by=660-t*600+gauss()*55;
     const rg=x.createRadialGradient(bx,by,0,bx,by,55+Math.random()*55);
-    rg.addColorStop(0,ivory?'rgba(195,165,228,.11)':'rgba(190,170,230,.09)');rg.addColorStop(1,'rgba(0,0,0,0)');
+    rg.addColorStop(0,mw);rg.addColorStop(1,fade(mw));
     x.fillStyle=rg;x.fillRect(0,0,620,1066);}
   for(let i=0;i<1200;i++){
     const t=Math.random(),bx=35+t*250+gauss()*58*(1-t*.3),by=660-t*600+gauss()*75;
     const r=Math.random()<.92?Math.random()*1.1+.3:Math.random()*2+1.3;
-    x.fillStyle='rgba('+sc+','+((ivory?.7:1)*(.22+Math.random()*.55)).toFixed(2)+')';
+    x.fillStyle='rgba('+sc+','+((ivory?.9:1)*(.3+Math.random()*.6)).toFixed(2)+')';
     x.beginPath();x.arc(bx,by,r,0,7);x.fill();
-    if(r>1.5){const rg=x.createRadialGradient(bx,by,0,bx,by,r*4);
-      rg.addColorStop(0,'rgba('+sc+',.45)');rg.addColorStop(1,'rgba(0,0,0,0)');
-      x.fillStyle=rg;x.beginPath();x.arc(bx,by,r*4,0,7);x.fill();}
+    if(r>1.5){
+      /* a gold glow concentrated at the centre, fading to transparent GOLD (no dark aura) */
+      const rg=x.createRadialGradient(bx,by,0,bx,by,r*3.2);
+      rg.addColorStop(0,'rgba('+sc+','+(ivory?.6:.45)+')');rg.addColorStop(.45,'rgba('+sc+',.12)');rg.addColorStop(1,'rgba('+sc+',0)');
+      x.fillStyle=rg;x.beginPath();x.arc(bx,by,r*3.2,0,7);x.fill();
+      /* a bright near-white core so it reads as a star, not a smudge */
+      x.fillStyle=ivory?'rgba(255,247,224,.92)':'rgba(255,250,240,.95)';
+      x.beginPath();x.arc(bx,by,r*0.55,0,7);x.fill();
+    }
   }
   /* scattered field stars across the whole sheet */
-  const fc=ivory?'190,160,105':'236,240,255';
+  const fc=ivory?'220,182,112':'236,240,255';     /* warmer/brighter on ivory */
   for(let i=0;i<460;i++){
-    x.fillStyle='rgba('+fc+','+((ivory?.55:1)*(.14+Math.random()*.5)).toFixed(2)+')';
+    x.fillStyle='rgba('+fc+','+((ivory?.72:1)*(.18+Math.random()*.5)).toFixed(2)+')';
     x.beginPath();x.arc(Math.random()*620,Math.random()*1066,Math.random()*1.1+.25,0,7);x.fill();
   }
   /* a few bright 4-point sparkles */
   for(let i=0;i<15;i++){
     const sx=Math.random()*620,sy=Math.random()*1066,L=4+Math.random()*9;
-    x.strokeStyle='rgba('+sc+','+(ivory?.5:.7)+')';x.lineWidth=.9;
+    x.strokeStyle='rgba('+sc+','+(ivory?.62:.7)+')';x.lineWidth=.9;
     x.beginPath();x.moveTo(sx-L,sy);x.lineTo(sx+L,sy);x.moveTo(sx,sy-L);x.lineTo(sx,sy+L);x.stroke();
-    const rg=x.createRadialGradient(sx,sy,0,sx,sy,L);rg.addColorStop(0,'rgba('+sc+',.75)');rg.addColorStop(1,'rgba(0,0,0,0)');
+    const rg=x.createRadialGradient(sx,sy,0,sx,sy,L);rg.addColorStop(0,'rgba('+sc+',.8)');rg.addColorStop(.5,'rgba('+sc+',.18)');rg.addColorStop(1,'rgba('+sc+',0)');
     x.fillStyle=rg;x.beginPath();x.arc(sx,sy,L,0,7);x.fill();
   }
   return c.toDataURL('image/png');
@@ -1790,7 +1803,7 @@ function certTemplate(d){
    +'</div>'
    +'<div class="ct-foot">'
    +'<div class="ct-sig">'+SIG1+'<span>The Astralis Registry</span><small>Official registrar</small></div>'
-   +'<div class="ct-qr"><small>Registry ID</small><span class="c-id">'+d.id+'</span></div>'
+   +'<div class="ct-qr"><span class="ct-idstar">'+CERT_DIVSTAR+'</span><small>Registry ID</small><span class="c-id">'+d.id+'</span></div>'
    +'<div class="ct-sig"><img class="ct-sigimg" src="'+(window.CERT_SIG||window.CERT_SIG_RAW||'/signature.png')+'" alt="The AUS Registry signature"/><span>The AUS Registry</span><small>Chief Executive Officer</small></div>'
    +'</div>'
    +'<div class="ct-bottom">This star will shine forever, just like the memories you create</div>'
@@ -2184,17 +2197,20 @@ function buildGalaxy(){
      search index. Customer-named stars from localStorage override/extend it. --- */
   E.names={};
   const used=new Set();
-  /* pools 1/2/4/6 = Chinese / Korean / Thai / Cambodian(Khmer). For 39% of the
-     stars that would draw one of those names, drop the personal name and label
-     the star with its own catalogue star name (AST-…) instead. */
-  const ASIAN_POOLS=new Set([1,2,4,6]);
+  /* pools 1-6 = Chinese/Korean/Japanese/Thai/Vietnamese/Cambodian(Khmer). Free up
+     40% of those Asian names (label the star with its own catalogue AST-… name),
+     and convert 10% of the remaining non-English stars to an English name. */
+  const ASIAN_POOLS=new Set([1,2,3,4,5,6]);
   const catalogueName=gi=>'AST-'+String(100000+(gi*7919)%900000);
+  const englishName=gi=>{const p=STAR_NAME_POOLS[0],L=p.length,a=(gi*7)%L,b=(a+1+(gi%(L-1)))%L;return p[a]+' '+p[b];};
   buckets.reserved.forEach((gi,ord)=>{
-    if(ASIAN_POOLS.has(ord%STAR_NAME_POOLS.length)&&h1(gi,71)<0.39){
-      E.names[gi]=catalogueName(gi); /* give them their star name */
+    const pool=ord%STAR_NAME_POOLS.length;
+    if(ASIAN_POOLS.has(pool)&&h1(gi,71)<0.40){
+      E.names[gi]=catalogueName(gi); /* freed up — its own star name */
       return;
     }
-    let nm=genStarName(ord),key=nm.toLowerCase();
+    let nm=(pool!==0&&h1(gi,83)<0.10)?englishName(gi):genStarName(ord);
+    let key=nm.toLowerCase();
     if(used.has(key)){let k=2;while(used.has((nm+' '+k).toLowerCase()))k++;nm=nm+' '+k;key=nm.toLowerCase();}
     used.add(key);E.names[gi]=nm;
   });
