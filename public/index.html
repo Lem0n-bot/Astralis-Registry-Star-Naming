@@ -279,11 +279,11 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 #starLoader.play .sl-sub{animation:slSub 1.4s ease .6s forwards}
 #starLoader.play .sl-fact{animation:slFact 1.4s ease .8s forwards}
 /* quick page-transition variant of the same screen — snappier fades + phase-ins */
-#starLoader.quick{transition:opacity .4s ease}
-#starLoader.quick.out{transition:opacity .5s ease}
-#starLoader.quick.play .sl-logo{animation-duration:.55s}
-#starLoader.quick.play .sl-sub{animation-duration:.6s;animation-delay:.15s}
-#starLoader.quick.play .sl-fact{animation-duration:.6s;animation-delay:.25s}
+#starLoader.quick{transition:opacity .52s ease}
+#starLoader.quick.out{transition:opacity .65s ease}
+#starLoader.quick.play .sl-logo{animation-duration:.72s}
+#starLoader.quick.play .sl-sub{animation-duration:.78s;animation-delay:.2s}
+#starLoader.quick.play .sl-fact{animation-duration:.78s;animation-delay:.33s}
 /* completion: the logo brightens once the constellation is fully charted */
 #starLoader.complete .sl-logo{filter:drop-shadow(0 0 26px rgba(242,220,162,.8))}
 
@@ -2683,10 +2683,12 @@ $('#claimBtn').addEventListener('click',()=>{
   })();
   state.reservedStar=s;state.reserveEnds=Date.now()+15*60*1000;
   setTimeout(()=>{
-    closeExplorer();
-    toast(`Star <b>${s.info.id}</b> in <b>${CONSTELLATIONS[s.info.ci][0]}</b> is reserved for 15 minutes — now choose a package`);
-    applyReservation();
-    document.getElementById('packages').scrollIntoView({behavior:reduceMotion?'auto':'smooth'});
+    /* leave the explorer through the loading screen, landing on the packages */
+    closeExplorerCinematic(()=>{
+      applyReservation();
+      document.getElementById('packages').scrollIntoView({behavior:'auto'});
+      toast(`Star <b>${s.info.id}</b> in <b>${CONSTELLATIONS[s.info.ci][0]}</b> is reserved for 15 minutes — now choose a package`);
+    });
   },900);
 });
 function applyReservation(){
@@ -3084,7 +3086,7 @@ function runStarLoader(done,quick){
      like the hero starfield, which deliberately ignores prefers-reduced-motion
      (owner requirement). Reduced-motion only suppresses incidental shooting stars. */
   const bg=startLoaderStars($('#slCanvas'),reduceMotion);
-  const cst=startConstellation($('#slCstCanvas'),c,false,quick?0.42:1);
+  const cst=startConstellation($('#slCstCanvas'),c,false,quick?0.55:1);
   const stopAll=()=>{bg.stop();cst.stop();};
 
   void sl.offsetWidth;                                 /* reflow so .play replays on relaunch */
@@ -3092,12 +3094,13 @@ function runStarLoader(done,quick){
   requestAnimationFrame(()=>sl.classList.add('in'));
 
   if(quick){
-    /* quick page transition: chart fast, reveal the page beneath, fade out */
-    const enterAt=Math.max(1100,cst.buildEnd+300);
-    later(()=>sl.classList.add('complete'),cst.buildEnd+100);
-    later(()=>done(),enterAt-200);                     /* page opens beneath the loader */
+    /* quick page transition: chart (a touch slower for legibility), reveal the
+       page beneath, fade out */
+    const enterAt=Math.max(1430,cst.buildEnd+390);
+    later(()=>sl.classList.add('complete'),cst.buildEnd+130);
+    later(()=>done(),enterAt-260);                     /* page opens beneath the loader */
     later(()=>sl.classList.add('out'),enterAt);        /* fade out to reveal it cleanly */
-    later(()=>{stopAll();sl.classList.remove('show','in','out','play','complete','quick');},enterAt+700);
+    later(()=>{stopAll();sl.classList.remove('show','in','out','play','complete','quick');},enterAt+900);
     return;
   }
 
@@ -3123,10 +3126,12 @@ function openExplorerCinematic(){
   EXP._launching=true;
   runStarLoader(()=>enterExplorer(true));
 }
-function closeExplorer(){
+function closeExplorer(instant){
   const ex=$('#explorer');
   ex.classList.remove('visible');
-  setTimeout(()=>{ex.classList.remove('open');},800);
+  /* instant: hide immediately (used when a loading screen already covers us) */
+  if(instant)ex.classList.remove('open');
+  else setTimeout(()=>{ex.classList.remove('open');},800);
   document.body.style.overflow='';
   cancelAnimationFrame(EXP.raf);EXP.raf=null;EXP.phase='idle';
   /* clear the launch guard: it is normally reset by the arrive-tween callback,
@@ -3135,7 +3140,17 @@ function closeExplorer(){
   EXP._launching=false;
   if(EXP.audio&&EXP.audio.on)setAmbience(false);
 }
-$('#expClose').addEventListener('click',()=>closeExplorer());
+/* leave the explorer behind the loading screen, then reveal the page (optionally
+   running `after` — e.g. scroll to packages — while the loader still covers). */
+function closeExplorerCinematic(after){
+  if(EXP._closing)return;EXP._closing=true;
+  runStarLoader(()=>{
+    closeExplorer(true);          /* hide the explorer instantly beneath the loader */
+    if(after)after();
+    EXP._closing=false;
+  },true);
+}
+$('#expClose').addEventListener('click',()=>closeExplorerCinematic());
 $$('[data-launch]').forEach(b=>b.addEventListener('click',openExplorerCinematic));
 
 /* ---------- registry search (name lookup, partial + case-insensitive) ---------- */
@@ -3960,12 +3975,21 @@ $$('a[data-page]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();
 $('#subClose').addEventListener('click',closeSubpage);
 $('#subLogo').addEventListener('click',e=>{e.preventDefault();closeSubpage();});
 $('#subpage').addEventListener('click',e=>{
-  if(e.target.closest('#cf-send')){
-    const n=$('#cf-name'),em=$('#cf-email'),m=$('#cf-msg');
-    if(!n.value.trim()||!em.value.trim()||!m.value.trim()){toast('Please fill in your name, email and message.');return;}
-    closeSubpage();
-    toast('Message sent. <b>We typically reply within 1–2 business days.</b>');
-  }
+  const btn=e.target.closest('#cf-send');if(!btn)return;
+  const n=$('#cf-name'),em=$('#cf-email'),m=$('#cf-msg');
+  if(!n.value.trim()||!em.value.trim()||!m.value.trim()){toast('Please fill in your name, email and message.');return;}
+  const fail=()=>toast('Couldn’t send right now — please email <b>help.astralis@gmail.com</b> directly.');
+  const old=btn.textContent;btn.disabled=true;btn.textContent='Sending…';
+  /* actually deliver the message to the support inbox via /api/contact */
+  fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:n.value,email:em.value,message:m.value})})
+    .then(r=>{
+      btn.disabled=false;btn.textContent=old;
+      if(r.ok){n.value=em.value=m.value='';closeSubpage();
+        toast('Message sent to <b>help.astralis@gmail.com</b> — we typically reply within 1–2 business days.');}
+      else fail();
+    })
+    .catch(()=>{btn.disabled=false;btn.textContent=old;fail();});
 });
 </script>
 </body>
