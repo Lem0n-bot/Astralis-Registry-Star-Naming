@@ -148,7 +148,7 @@ nav.scrolled{background:rgba(5,7,15,.78);backdrop-filter:blur(18px);-webkit-back
    Ivory cert, inverted to light ink on the dark Midnight cert. Cropped to the ink. */
 .ct-sigimg{width:16cqw;height:6.4cqw;object-fit:cover;object-position:center 50%;display:block;margin:-.6cqw auto -.2cqw}
 .cert:not(.ivory) .ct-sigimg{filter:invert(1) brightness(1.18)}
-.ct-qr{display:flex;flex-direction:column;align-items:center}
+.ct-qr{display:flex;flex-direction:column;align-items:center;align-self:center;text-align:center}
 .ct-qr small{font-size:1.35cqw;letter-spacing:.3em;color:var(--cmut);text-transform:uppercase}
 .ct-qr .c-id{font-size:2cqw;letter-spacing:.16em;color:var(--cg2)}
 .ct-bottom{font-size:1.35cqw;letter-spacing:.24em;color:var(--cg);margin-top:1.4cqw;text-transform:uppercase;white-space:nowrap}
@@ -1791,7 +1791,7 @@ function certTemplate(d){
    +'<div class="ct-foot">'
    +'<div class="ct-sig">'+SIG1+'<span>The Astralis Registry</span><small>Official registrar</small></div>'
    +'<div class="ct-qr"><small>Registry ID</small><span class="c-id">'+d.id+'</span></div>'
-   +'<div class="ct-sig"><img class="ct-sigimg" src="'+(window.CERT_SIG||window.CERT_SIG_RAW||'/signature.png')+'" alt="AU registry signature"/><span>AU registry</span><small>Chief Executive Officer</small></div>'
+   +'<div class="ct-sig"><img class="ct-sigimg" src="'+(window.CERT_SIG||window.CERT_SIG_RAW||'/signature.png')+'" alt="The AUS Registry signature"/><span>The AUS Registry</span><small>Chief Executive Officer</small></div>'
    +'</div>'
    +'<div class="ct-bottom">This star will shine forever, just like the memories you create</div>'
    +'</div>';
