@@ -278,6 +278,12 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 #starLoader.play .sl-logo{animation:slLogoIn 1.2s cubic-bezier(.2,.7,.3,1) forwards}
 #starLoader.play .sl-sub{animation:slSub 1.4s ease .6s forwards}
 #starLoader.play .sl-fact{animation:slFact 1.4s ease .8s forwards}
+/* quick page-transition variant of the same screen — snappier fades + phase-ins */
+#starLoader.quick{transition:opacity .4s ease}
+#starLoader.quick.out{transition:opacity .5s ease}
+#starLoader.quick.play .sl-logo{animation-duration:.55s}
+#starLoader.quick.play .sl-sub{animation-duration:.6s;animation-delay:.15s}
+#starLoader.quick.play .sl-fact{animation-duration:.6s;animation-delay:.25s}
 /* completion: the logo brightens once the constellation is fully charted */
 #starLoader.complete .sl-logo{filter:drop-shadow(0 0 26px rgba(242,220,162,.8))}
 
@@ -2971,7 +2977,8 @@ const SPACE_FACTS=[
    generally left→right. A golden pulse travels each path, leaving the line lit
    behind it; reached stars pop then settle. Once charted, pulses keep flowing
    outward so the network stays alive. Returns {stop, buildEnd}. */
-function startConstellation(canvas,c,reduced){
+function startConstellation(canvas,c,reduced,speed){
+  speed=speed||1;                                   /* <1 = faster (quick page transitions) */
   const ctx=canvas.getContext('2d');
   const DPR=Math.min(devicePixelRatio||1,2);
   const [vw,vh]=c.vb,N=c.stars.length;
@@ -2991,7 +2998,7 @@ function startConstellation(canvas,c,reduced){
   const adj=Array.from({length:N},()=>[]);
   c.edges.forEach(e=>{adj[e[0]].push(e[1]);adj[e[1]].push(e[0]);});
   let root=0;for(let i=1;i<N;i++)if(c.stars[i][0]<c.stars[root][0])root=i;
-  const LEAD=320,EDGE_DUR=456;                       /* per-connection travel/delay (20% slower) */
+  const LEAD=320*speed,EDGE_DUR=456*speed;           /* per-connection travel/delay (×speed) */
   const starLit=new Array(N).fill(Infinity),dep=new Array(N).fill(0),vis=new Array(N).fill(false);
   starLit[root]=LEAD;vis[root]=true;
   const q=[root];
@@ -3004,7 +3011,7 @@ function startConstellation(canvas,c,reduced){
   });
   const buildEnd=Math.max(LEAD,...edges.map(e=>e.start+EDGE_DUR)),POP=300;
   /* a single "starlight" trace once charted (30% slower than before), then quiet */
-  const SURGE_SPARK=837,SURGE_STAGGER=164,surgeStart=buildEnd+220;
+  const SURGE_SPARK=837*speed,SURGE_STAGGER=164*speed,surgeStart=buildEnd+220*speed;
   const chartedAt=surgeStart+Math.max(0,...edges.map(e=>e.dep))*SURGE_STAGGER+SURGE_SPARK;
   const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
   const t0=performance.now();
@@ -3058,35 +3065,46 @@ function startConstellation(canvas,c,reduced){
   return {stop(){running=false;if(raf)cancelAnimationFrame(raf);removeEventListener('resize',layout);},buildEnd,chartedAt};
 }
 
-/* Orchestrate one loading screen (fixed 7s): pick a constellation + fact, chart
-   it on the canvas (the build is the loading indicator), then hand off. */
-function runStarLoader(done){
+/* Orchestrate the loading screen, then hand off (call done() beneath it, then
+   fade out to reveal the target — no flash). The full ~7s build is used for the
+   explorer launch; quick=true plays a short (~1.6s) version of the SAME screen
+   for ordinary page transitions (sub-pages). */
+function runStarLoader(done,quick){
   const sl=$('#starLoader');
   clearLoaderTimers();
-  sl.classList.remove('out','rm','play','complete');
+  sl.classList.remove('out','rm','play','complete','quick');
+  if(quick)sl.classList.add('quick');
   /* random complex constellation + random fact (fresh on every visit) */
   const c=SL_CONSTS[Math.random()*SL_CONSTS.length|0];
   $('#slSub').textContent='Charting '+c.name;
   $('#slFact').textContent=SPACE_FACTS[Math.random()*SPACE_FACTS.length|0];
   sl.classList.add('show');
   document.body.style.overflow='hidden';
-  const preload=()=>{if(!EXP.inited){try{buildGalaxy();}catch(e){console.error('[loader] preload failed',e);}}};
   /* The constellation build IS the loading indicator, so it always animates —
      like the hero starfield, which deliberately ignores prefers-reduced-motion
      (owner requirement). Reduced-motion only suppresses incidental shooting stars. */
   const bg=startLoaderStars($('#slCanvas'),reduceMotion);
-  const cst=startConstellation($('#slCstCanvas'),c,false);
+  const cst=startConstellation($('#slCstCanvas'),c,false,quick?0.42:1);
   const stopAll=()=>{bg.stop();cst.stop();};
 
   void sl.offsetWidth;                                 /* reflow so .play replays on relaunch */
   sl.classList.add('play');                            /* phase-in of the logo + subtitle + fact */
   requestAnimationFrame(()=>sl.classList.add('in'));
-  later(preload,520);                                  /* preload the galaxy behind the fade-in */
+
+  if(quick){
+    /* quick page transition: chart fast, reveal the page beneath, fade out */
+    const enterAt=Math.max(1100,cst.buildEnd+300);
+    later(()=>sl.classList.add('complete'),cst.buildEnd+100);
+    later(()=>done(),enterAt-200);                     /* page opens beneath the loader */
+    later(()=>sl.classList.add('out'),enterAt);        /* fade out to reveal it cleanly */
+    later(()=>{stopAll();sl.classList.remove('show','in','out','play','complete','quick');},enterAt+700);
+    return;
+  }
+
+  /* full launch: preload the galaxy, then a seamless hand-off into the explorer */
+  const preload=()=>{if(!EXP.inited){try{buildGalaxy();}catch(e){console.error('[loader] preload failed',e);}}};
+  later(preload,520);
   later(()=>sl.classList.add('complete'),cst.buildEnd+220); /* logo brightens once charted */
-  /* the single trace finishes at chartedAt; hold a quiet ~1.2s beat, then enter.
-     Seamless hand-off (no hero-page flash): the explorer fades in BENEATH the
-     still-opaque loader during the pause, and only when it's opaque do we fade
-     the loader out — so at chartedAt+1.2s the galaxy is revealed cleanly. */
   const enterAt=cst.chartedAt+1200;
   later(()=>done(),cst.chartedAt+400);                 /* explorer fades in beneath (opaque by enterAt) */
   later(()=>sl.classList.add('out'),enterAt);          /* reveal the galaxy at chartedAt + 1.2s */
@@ -3920,13 +3938,19 @@ refunds:{t:'Refund Policy',l:'Every Astralis piece is made personally for you. H
 <h2>Digital products</h2><p>If a digital certificate fails to arrive or contains a production error on our part, we will reissue it promptly at no charge.</p>
 <p class="meta">This policy operates alongside, and does not limit, your rights under the Australian Consumer Law. Last updated: June 2026.</p>`}
 };
+let _subTransitioning=false;
 function openSubpage(k){
-  const p=PAGES[k];if(!p)return;
-  $('#subContent').innerHTML='<h1>'+p.t+'</h1><p class="lede">'+p.l+'</p>'+p.b;
-  if(window.__applyGlowTitles)window.__applyGlowTitles($('#subContent'));
-  $('#subpage').classList.add('on');
-  $('#subpage').scrollTop=0;
-  document.body.style.overflow='hidden';
+  const p=PAGES[k];if(!p||_subTransitioning)return;
+  _subTransitioning=true;
+  /* play the quick loading screen, then reveal the page beneath it */
+  runStarLoader(()=>{
+    $('#subContent').innerHTML='<h1>'+p.t+'</h1><p class="lede">'+p.l+'</p>'+p.b;
+    if(window.__applyGlowTitles)window.__applyGlowTitles($('#subContent'));
+    $('#subpage').classList.add('on');
+    $('#subpage').scrollTop=0;
+    document.body.style.overflow='hidden';
+    _subTransitioning=false;
+  },true);
 }
 function closeSubpage(){
   $('#subpage').classList.remove('on');
