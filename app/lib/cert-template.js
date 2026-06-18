@@ -13,6 +13,21 @@ import { CERT_W, CERT_H } from './render.js';
 const esc = (s) =>
   String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+let _sigUri = null;
+/** The CEO ink signature as a data URI, so it renders under headless Chromium
+ *  (page.setContent has no base URL, so a "/signature.png" src would 404). */
+function signatureUri() {
+  if (_sigUri !== null) return _sigUri;
+  try {
+    const buf = readFileSync(path.join(process.cwd(), 'public', 'signature.png'));
+    _sigUri = 'data:image/png;base64,' + buf.toString('base64');
+  } catch (e) {
+    console.error('[cert-template] signature.png not found', e?.message);
+    _sigUri = '';
+  }
+  return _sigUri;
+}
+
 let _assets = null;
 function assets() {
   if (_assets) return _assets;
@@ -82,21 +97,37 @@ ${fontLink}
 <body>
 <div id="stage"><div class="cert${ivory ? ' ivory' : ''}" id="C"></div></div>
 <script>
+window.CERT_SIG=${JSON.stringify(signatureUri())};
 ${h1}
 ${gen}
 (function(){
   var DATA=${JSON.stringify(data)};
-  document.getElementById('C').innerHTML=certTemplate(DATA);
-  if(DATA.certId){
-    var qr=document.querySelector('#C .ct-qr');
-    if(qr){
-      var s=document.createElement('div');
-      s.style.cssText='margin-top:.5cqw;font-size:1.12cqw;letter-spacing:.1em;text-transform:uppercase;color:var(--cmut)';
-      s.textContent='Certificate No. '+DATA.certId;
-      qr.appendChild(s);
+  function render(){
+    document.getElementById('C').innerHTML=certTemplate(DATA);
+    if(DATA.certId){
+      var qr=document.querySelector('#C .ct-qr');
+      if(qr){
+        var s=document.createElement('div');
+        s.style.cssText='margin-top:.5cqw;font-size:1.12cqw;letter-spacing:.1em;text-transform:uppercase;color:var(--cmut)';
+        s.textContent='Certificate No. '+DATA.certId;
+        qr.appendChild(s);
+      }
     }
+    window.__certReady=true;
   }
-  window.__certReady=true;
+  // key the signature's white background to transparency, then render
+  if(window.CERT_SIG){
+    var img=new Image();
+    img.onload=function(){try{
+      var c=document.createElement('canvas');c.width=img.naturalWidth||500;c.height=img.naturalHeight||500;
+      var x=c.getContext('2d');x.drawImage(img,0,0);
+      var d=x.getImageData(0,0,c.width,c.height),a=d.data;
+      for(var i=0;i<a.length;i+=4){var r=a[i],g=a[i+1],b=a[i+2],mn=Math.min(r,g,b),mx=Math.max(r,g,b);
+        if(mn>205&&mx-mn<26)a[i+3]=0;else if(mn>140)a[i+3]=Math.round(a[i+3]*(1-(mn-140)/130));}
+      x.putImageData(d,0,0);window.CERT_SIG=c.toDataURL('image/png');
+    }catch(e){}render();};
+    img.onerror=render;img.src=window.CERT_SIG;
+  } else render();
 })();
 </script>
 </body></html>`;

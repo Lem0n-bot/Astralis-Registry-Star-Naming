@@ -143,6 +143,11 @@ nav.scrolled{background:rgba(5,7,15,.78);backdrop-filter:blur(18px);-webkit-back
 .ct-sigsvg{width:13.5cqw;height:4.2cqw;color:var(--cink);opacity:.9}
 .ct-sig span{font-family:var(--display);font-style:italic;font-size:2.05cqw;border-top:1px solid var(--lnc);padding-top:.8cqw;margin-top:.5cqw;width:100%}
 .ct-sig small{font-size:1.3cqw;letter-spacing:.24em;color:var(--cmut);margin-top:.4cqw;text-transform:uppercase}
+/* real ink signature (png). Its white background is keyed to transparency at
+   runtime (keySignature), so we just tint per finish: dark ink as-is on the light
+   Ivory cert, inverted to light ink on the dark Midnight cert. Cropped to the ink. */
+.ct-sigimg{width:15cqw;height:5cqw;object-fit:cover;object-position:center 50%;display:block;margin-bottom:.2cqw}
+.cert:not(.ivory) .ct-sigimg{filter:invert(1) brightness(1.18)}
 .ct-qr{display:flex;flex-direction:column;align-items:center}
 .ct-qr small{font-size:1.35cqw;letter-spacing:.3em;color:var(--cmut);text-transform:uppercase}
 .ct-qr .c-id{font-size:2cqw;letter-spacing:.16em;color:var(--cg2)}
@@ -215,6 +220,21 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .warp-text{position:absolute;inset:0;display:grid;place-items:center;z-index:6;pointer-events:none}
 .warp-text div{font-family:var(--display);font-size:clamp(1.3rem,3vw,2rem);font-style:italic;letter-spacing:.08em;color:var(--star);opacity:0;animation:warpline 2.8s ease forwards}
 @keyframes warpline{12%{opacity:1}70%{opacity:1}100%{opacity:0;letter-spacing:.25em}}
+
+/* ============ RARE SUPERNOVA EVENT ============ */
+#supernovaFx{position:fixed;inset:0;width:100%;height:100%;z-index:350;pointer-events:none;
+  opacity:0;display:none;transition:opacity .8s ease}
+#supernovaFx.on{opacity:1;display:block}
+#novaNotice{position:fixed;top:84px;left:50%;transform:translate(-50%,-16px);z-index:355;pointer-events:none;
+  display:flex;align-items:center;gap:.85rem;padding:.85rem 1.35rem;border-radius:14px;
+  background:linear-gradient(180deg,rgba(22,18,46,.94),rgba(10,8,24,.94));border:1px solid rgba(217,185,108,.42);
+  box-shadow:0 22px 60px rgba(0,0,0,.5),0 0 44px rgba(190,150,235,.28);backdrop-filter:blur(14px);
+  opacity:0;transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
+#novaNotice.on{opacity:1;transform:translate(-50%,0)}
+#novaNotice .nv-ic{font-size:1.5rem;color:var(--gold-bright);text-shadow:0 0 16px rgba(242,220,162,.85)}
+#novaNotice .nv-t{font-family:var(--display);font-size:1.02rem;color:var(--star);letter-spacing:.03em}
+#novaNotice .nv-s{font-size:.74rem;color:var(--mute);font-style:italic;margin-top:.1rem}
+@media(max-width:560px){#novaNotice{width:min(90vw,360px);top:72px}}
 
 /* ============ STAR LOADER · constellation-charting transition ============
    One randomly-chosen complex constellation charts itself above a large, centred
@@ -365,8 +385,18 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .counters{display:flex;justify-content:center;gap:4rem;flex-wrap:wrap;margin:2.6rem 0 3.6rem}
 .counter .n{font-family:var(--display);font-size:clamp(2.4rem,5vw,3.6rem);color:var(--gold-bright)}
 .counter .l{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--mute)}
-.reviews{display:grid;grid-template-columns:repeat(3,1fr);gap:1.3rem}
-.review{background:var(--glass);border:1px solid var(--glass-brd);border-radius:var(--r);padding:1.7rem;backdrop-filter:blur(12px);transition:transform .4s,border-color .4s}
+/* live registry counter: a brief, soft gold glow each time the value ticks up */
+.reg-bump{animation:regBump 1.2s ease}
+@keyframes regBump{0%{text-shadow:0 0 0 rgba(242,220,162,0)}
+  28%{text-shadow:0 0 18px rgba(242,220,162,.85),0 0 7px rgba(242,220,162,.55)}
+  100%{text-shadow:0 0 0 rgba(242,220,162,0)}}
+/* review marquee: a continuous, draggable, infinite horizontal carousel */
+.reviews-vp{overflow:hidden;cursor:grab;touch-action:pan-y;padding:10px 0;
+  -webkit-mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+  mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.reviews-vp.drag{cursor:grabbing}
+.reviews-track{display:flex;gap:1.3rem;width:max-content;will-change:transform}
+.review{flex:0 0 min(80vw,340px);background:var(--glass);border:1px solid var(--glass-brd);border-radius:var(--r);padding:1.7rem;backdrop-filter:blur(12px);transition:transform .4s,border-color .4s}
 .review:hover{transform:translateY(-6px);border-color:rgba(217,185,108,.35)}
 .review .stars{color:var(--gold);letter-spacing:.18em;font-size:.82rem;margin-bottom:.8rem}
 .review p{font-size:.9rem;color:#cfd4e8;font-style:italic;font-family:var(--display);font-size:1.05rem}
@@ -374,7 +404,7 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:.8rem;font-weight:600;color:#1a1405;background:linear-gradient(135deg,var(--gold-bright),var(--gold))}
 .who .nm{font-size:.84rem;color:var(--star)}
 .who .oc{font-size:.7rem;color:var(--mute);letter-spacing:.08em;text-transform:uppercase}
-@media(max-width:900px){.reviews{grid-template-columns:1fr}}
+@media(max-width:900px){.review{flex-basis:min(86vw,320px)}}
 
 /* ============ OCCASIONS ============ */
 .occ-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.1rem;margin-top:3rem}
@@ -651,7 +681,7 @@ footer a:hover{color:var(--gold)}
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>Instant digital delivery</span>
       </div>
       <div class="hero-stats fx in d3">
-        <div class="hstat"><div class="n" data-count="50000" data-suffix="+">0</div><div class="l">Stars named</div></div>
+        <div class="hstat"><div class="n" data-registry>50,000</div><div class="l">Stars named</div></div>
         <div class="hstat"><div class="n" data-count="49" data-decimal="1">0</div><div class="l">Average rating</div></div>
         <div class="hstat"><div class="n">SSL</div><div class="l">Secure checkout</div></div>
       </div>
@@ -779,27 +809,54 @@ footer a:hover{color:var(--gold)}
       <h2>Over 50,000 Stars Named Worldwide</h2>
     </div>
     <div class="counters fx d1">
-      <div class="counter center"><div class="n" data-count="50000" data-suffix="+">0</div><div class="l">Stars named</div></div>
-      <div class="counter center"><div class="n" data-count="10482">0</div><div class="l">Five-star reviews</div></div>
-      <div class="counter center"><div class="n" data-count="8">0</div><div class="l">States &amp; territories</div></div>
-      <div class="counter center"><div class="n" data-count="98" data-suffix="%">0</div><div class="l">Would gift again</div></div>
+      <div class="counter center"><div class="n" data-registry>50,000</div><div class="l">Stars named</div></div>
+      <div class="counter center"><div class="n" data-count="10482">0</div><div class="l">Total reviews</div></div>
+      <div class="counter center"><div class="n" data-count="4193">0</div><div class="l">Five-star reviews</div></div>
+      <div class="counter center"><div class="n" data-count="96" data-suffix="%">0</div><div class="l">Would claim again</div></div>
     </div>
-    <div class="reviews">
-      <article class="review fx">
-        <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-        <p>"My wife cried when she opened it. We found 'her' star together in the galaxy explorer on our anniversary. Unreal experience."</p>
-        <div class="who"><div class="avatar">JM</div><div><div class="nm">James M.</div><div class="oc">Anniversary · Melbourne</div></div></div>
-      </article>
-      <article class="review fx d1">
-        <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-        <p>"We named a star for Dad's memorial. The framed certificate is beautiful and the coordinates mean we can always find him."</p>
-        <div class="who"><div class="avatar">SP</div><div><div class="nm">Sarah P.</div><div class="oc">Memorial · London</div></div></div>
-      </article>
-      <article class="review fx d2">
-        <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-        <p>"Ordered at 11pm, certificate arrived instantly, surprise saved. The quality looks far more expensive than the price."</p>
-        <div class="who"><div class="avatar">AK</div><div><div class="nm">Aisha K.</div><div class="oc">Birthday · Toronto</div></div></div>
-      </article>
+    <div class="reviews-vp" id="reviewsVp" aria-label="Customer reviews carousel">
+      <div class="reviews-track" id="reviewsTrack">
+        <article class="review">
+          <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
+          <p>"My wife cried when she opened it. We found 'her' star together in the galaxy explorer on our anniversary. Unreal experience."</p>
+          <div class="who"><div class="avatar">JM</div><div><div class="nm">James M.</div><div class="oc">Anniversary · Melbourne</div></div></div>
+        </article>
+        <article class="review">
+          <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
+          <p>"We named a star for Dad's memorial. The framed certificate is beautiful and the coordinates mean we can always find him."</p>
+          <div class="who"><div class="avatar">SP</div><div><div class="nm">Sarah P.</div><div class="oc">Memorial · London</div></div></div>
+        </article>
+        <article class="review">
+          <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
+          <p>"Ordered at 11pm, certificate arrived instantly, surprise saved. The quality looks far more expensive than the price."</p>
+          <div class="who"><div class="avatar">AK</div><div><div class="nm">Aisha K.</div><div class="oc">Birthday · Toronto</div></div></div>
+        </article>
+        <article class="review">
+          <div class="stars" aria-label="4 out of 5 stars">★★★★☆</div>
+          <p>"Lovely keepsake and the recipient was genuinely touched. Took a couple of days for the email to arrive, but the framed map was worth the wait."</p>
+          <div class="who"><div class="avatar">DN</div><div><div class="nm">Daniel N.</div><div class="oc">Wedding · Sydney</div></div></div>
+        </article>
+        <article class="review">
+          <div class="stars" aria-label="3 out of 5 stars">★★★☆☆</div>
+          <p>"It's a nice gift, but I'd assumed the gold seal was a real raised emboss and the signature hand-signed in ink. It's actually a high-quality print — looks good framed, just set your expectations."</p>
+          <div class="who"><div class="avatar">RC</div><div><div class="nm">Rebecca C.</div><div class="oc">New Baby · Auckland</div></div></div>
+        </article>
+        <article class="review">
+          <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
+          <p>"The galaxy explorer is mesmerising — spent an hour choosing the perfect star. The certificate exceeded my expectations."</p>
+          <div class="who"><div class="avatar">TL</div><div><div class="nm">Thomas L.</div><div class="oc">Valentine's · Dublin</div></div></div>
+        </article>
+        <article class="review">
+          <div class="stars" aria-label="3 out of 5 stars">★★★☆☆</div>
+          <p>"Thoughtful idea and the coordinates are a nice touch. Bit pricier than I expected for a printed certificate — I thought the wax-style seal would be a physical emboss. Still, my mum liked it."</p>
+          <div class="who"><div class="avatar">HW</div><div><div class="nm">Henry W.</div><div class="oc">Mother's Day · Perth</div></div></div>
+        </article>
+        <article class="review">
+          <div class="stars" aria-label="4 out of 5 stars">★★★★☆</div>
+          <p>"Beautiful presentation and a unique gift she'll remember. Would've loved a physical hand-signed touch, but the digital certificate itself is gorgeous and arrived fast."</p>
+          <div class="who"><div class="avatar">PG</div><div><div class="nm">Priya G.</div><div class="oc">Anniversary · Singapore</div></div></div>
+        </article>
+      </div>
     </div>
   </div>
 </section>
@@ -928,6 +985,13 @@ footer a:hover{color:var(--gold)}
 <div class="toast" id="toast" role="status">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
   <div id="toastText">Star reserved.</div>
+</div>
+
+<!-- ============ RARE SUPERNOVA EVENT ============ -->
+<canvas id="supernovaFx" aria-hidden="true"></canvas>
+<div id="novaNotice" aria-hidden="true">
+  <div class="nv-ic">✦</div>
+  <div><div class="nv-t">Rare Cosmic Event Detected</div><div class="nv-s">A distant star has gone supernova</div></div>
 </div>
 
 <!-- ============ STAR LOADER (constellation-charting transition) ============ -->
@@ -1202,6 +1266,174 @@ const cio=new IntersectionObserver(es=>es.forEach(e=>{
   })(t0);
 }),{threshold:.4});
 $$('[data-count]').forEach(el=>cio.observe(el));
+
+/* ---------- live registry counter ----------
+   A realistic, slowly-growing count of registered stars. The number drifts up
+   with real elapsed time (so repeat visits show growth) and ticks up organically
+   during the session with a smooth transition + soft glow. fetchRegistryCount()
+   is the single seam to swap in a real backend later. */
+(function(){
+  const els=$$('[data-registry]');if(!els.length)return;
+  function fetchRegistryCount(){
+    /* TODO: replace with a real API call. For now simulate believable growth
+       (~10/day) from a baseline so the registry feels active and alive. */
+    const EPOCH=Date.UTC(2026,5,1),hours=(Date.now()-EPOCH)/3600000;
+    return 49990+Math.floor(hours*0.42);
+  }
+  let target=fetchRegistryCount(),shown=target,raf=0;
+  const fmt=n=>Math.round(n).toLocaleString();
+  const render=()=>els.forEach(el=>{el.textContent=fmt(shown);});
+  const glow=()=>els.forEach(el=>{el.classList.remove('reg-bump');void el.offsetWidth;el.classList.add('reg-bump');});
+  function animateTo(b,dur){               /* smooth eased transition, never abrupt */
+    const a=shown,t0=performance.now();cancelAnimationFrame(raf);
+    (function tick(t){const p=Math.min(1,(t-t0)/dur);shown=a+(b-a)*(1-Math.pow(1-p,3));render();
+      if(p<1)raf=requestAnimationFrame(tick);else{shown=b;render();}})(performance.now());
+  }
+  let started=false;
+  function start(){
+    if(started)return;started=true;
+    shown=Math.max(0,target-160);render();animateTo(target,2000);   /* gentle intro count-up */
+    (function schedule(){                  /* occasional, irregular live increments */
+      setTimeout(()=>{
+        target+=Math.random()<0.16?2:1;    /* usually +1, occasionally +2 */
+        animateTo(target,1100);glow();
+        schedule();
+      },16000+Math.random()*46000);        /* every ~16–62s, not constant */
+    })();
+  }
+  render();
+  const rio=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){start();rio.disconnect();}}),{threshold:.4});
+  els.forEach(el=>rio.observe(el));
+})();
+
+/* ---------- key the white background out of the ink signature, once ----------
+   Produces a transparent signature so it tints cleanly on either certificate
+   finish (the .ct-in stacking context rules out CSS blend modes here). */
+(function(){
+  const img=new Image();
+  img.onload=function(){try{
+    const c=document.createElement('canvas');c.width=img.naturalWidth||500;c.height=img.naturalHeight||500;
+    const x=c.getContext('2d');x.drawImage(img,0,0);
+    const d=x.getImageData(0,0,c.width,c.height),a=d.data;
+    for(let i=0;i<a.length;i+=4){const r=a[i],g=a[i+1],b=a[i+2],mn=Math.min(r,g,b),mx=Math.max(r,g,b);
+      if(mn>205&&mx-mn<26)a[i+3]=0;                              /* near-white -> transparent */
+      else if(mn>140)a[i+3]=Math.round(a[i+3]*(1-(mn-140)/130)); /* feather light greys */
+    }
+    x.putImageData(d,0,0);
+    window.CERT_SIG=c.toDataURL('image/png');
+    document.querySelectorAll('.ct-sigimg').forEach(el=>{el.src=window.CERT_SIG;});  /* refresh rendered certs */
+  }catch(_){}};
+  img.src='/signature.png';
+})();
+
+/* ---------- review carousel: continuous marquee + drag/swipe, pause on hover ----------
+   A duplicated track scrolls slowly and loops seamlessly. It always drifts (a core
+   part of the social-proof section), pauses on hover, and supports manual drag/swipe
+   on desktop and mobile (touch-action:pan-y keeps vertical page scrolling natural). */
+(function(){
+  const vp=$('#reviewsVp'),track=$('#reviewsTrack');if(!vp||!track)return;
+  [...track.children].forEach(n=>{const c=n.cloneNode(true);c.setAttribute('aria-hidden','true');track.appendChild(c);});
+  let half=0;const measure=()=>{half=track.scrollWidth/2;};
+  measure();addEventListener('resize',measure);
+  let x=0,hover=false,dragging=false,lastX=0,raf=0,last=performance.now();
+  const wrap=()=>{if(half>0){if(x<=-half)x+=half;else if(x>0)x-=half;}};
+  const place=()=>{track.style.transform='translateX('+x.toFixed(2)+'px)';};
+  function frame(now){
+    const dt=Math.min(3,(now-last)/16.667);last=now;
+    if(!hover&&!dragging)x-=0.35*dt;          /* slow, luxurious drift */
+    wrap();place();raf=requestAnimationFrame(frame);
+  }
+  raf=requestAnimationFrame(frame);
+  vp.addEventListener('pointerenter',()=>{hover=true;});
+  vp.addEventListener('pointerleave',()=>{hover=false;});
+  vp.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;vp.classList.add('drag');
+    try{vp.setPointerCapture(e.pointerId);}catch(_){}});
+  vp.addEventListener('pointermove',e=>{if(!dragging)return;x+=e.clientX-lastX;lastX=e.clientX;wrap();place();});
+  const end=()=>{dragging=false;vp.classList.remove('drag');};
+  vp.addEventListener('pointerup',end);vp.addEventListener('pointercancel',end);
+})();
+
+/* ---------- rare "Supernova Flash" ambient event ----------
+   An ultra-rare (~2% per session) cosmic moment that can appear over any page —
+   a distant star intensifies, goes supernova, and a shockwave of light ripples
+   through nearby stars. A self-contained light overlay (pointer-events:none, runs
+   only when triggered) so it never affects performance or interactions. */
+function novaSound(){
+  try{
+    const E=window.EXP;if(!E||!E.audio||!E.audio.on||!E.audio.ctx)return;
+    const ctx=E.audio.ctx,t=ctx.currentTime,g=ctx.createGain();
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.10,t+0.5);g.gain.exponentialRampToValueAtTime(0.0001,t+3.6);
+    g.connect(ctx.destination);
+    [150,224.7].forEach(f=>{const o=ctx.createOscillator();o.type='sine';
+      o.frequency.setValueAtTime(f*1.5,t);o.frequency.exponentialRampToValueAtTime(f*0.5,t+3.4);
+      o.connect(g);o.start(t);o.stop(t+3.7);});
+  }catch(_){}
+}
+function showNovaNotice(){
+  const n=document.getElementById('novaNotice');if(!n)return;
+  n.classList.add('on');setTimeout(()=>n.classList.remove('on'),5200);
+}
+function triggerSupernova(){
+  if(window.__novaActive)return;
+  const cv=document.getElementById('supernovaFx');if(!cv)return;
+  window.__novaActive=true;
+  const ctx=cv.getContext('2d'),DPR=Math.min(devicePixelRatio||1,2);
+  let W,H;const size=()=>{W=cv.width=Math.round(innerWidth*DPR);H=cv.height=Math.round(innerHeight*DPR);};
+  size();addEventListener('resize',size);cv.classList.add('on');
+  const ox=W*(0.22+Math.random()*0.56),oy=H*(0.16+Math.random()*0.36);   /* a distant star */
+  const near=[];for(let i=0;i<48;i++){const a=Math.random()*6.2832,r=(40+Math.random()*470)*DPR;
+    near.push({x:ox+Math.cos(a)*r,y:oy+Math.sin(a)*r*0.82,r:(0.6+Math.random()*1.9)*DPR,tw:Math.random()*6.2832});}
+  const parts=[],COL=['255,255,255','200,225,255','242,220,162','190,150,235']; /* white·blue·gold·violet */
+  let exploded=false;const t0=performance.now(),DUR=6300,diag=Math.hypot(W,H);
+  function frame(now){
+    if(!window.__novaActive)return;
+    const el=now-t0;ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';
+    /* 1-2: the star brightens and intensifies (white -> blue-white) */
+    if(el<1750){const grow=Math.min(1,el/1650),a=0.2+grow*grow*0.6,pr=(2+grow*grow*22)*DPR;
+      const g=ctx.createRadialGradient(ox,oy,0,ox,oy,pr*4.2);
+      g.addColorStop(0,'rgba(255,255,255,'+a+')');g.addColorStop(.32,'rgba(205,225,255,'+(a*0.55)+')');g.addColorStop(1,'rgba(150,170,255,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(ox,oy,pr*4.2,0,6.2832);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,'+Math.min(0.9,a+0.15)+')';ctx.beginPath();ctx.arc(ox,oy,pr*0.55,0,6.2832);ctx.fill();}
+    /* 3: the supernova explosion */
+    if(el>=1700&&!exploded){exploded=true;
+      for(let i=0;i<140;i++){const a=Math.random()*6.2832,sp=(1.4+Math.random()*7.5)*DPR;
+        parts.push({x:ox,y:oy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*0.92,life:0,max:48+Math.random()*64,col:COL[Math.random()*COL.length|0],r:(0.8+Math.random()*2.3)*DPR});}
+      showNovaNotice();novaSound();}
+    if(el>=1700){
+      const fk=Math.min(1,(el-1700)/950),bloom=1-fk;                       /* bright, but capped — never blinding */
+      if(bloom>0){const br=(18+fk*350)*DPR,a=bloom*0.66,g=ctx.createRadialGradient(ox,oy,0,ox,oy,br);
+        g.addColorStop(0,'rgba(255,255,255,'+a+')');g.addColorStop(.24,'rgba(220,232,255,'+(a*0.8)+')');
+        g.addColorStop(.55,'rgba(242,220,162,'+(a*0.5)+')');g.addColorStop(1,'rgba(170,120,235,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(ox,oy,br,0,6.2832);ctx.fill();}
+      /* 4-5: shockwave expands; nearby stars briefly illuminate as it passes */
+      const sk=(el-1820)/3300;
+      if(sk>0&&sk<1.08){const sr=Math.pow(sk,0.72)*diag*0.6,a=(1-sk)*0.5;
+        ctx.strokeStyle='rgba('+(sk<0.5?'242,220,162,':'190,150,235,')+a+')';ctx.lineWidth=(2+(1-sk)*6)*DPR;
+        ctx.beginPath();ctx.arc(ox,oy,sr,0,6.2832);ctx.stroke();
+        near.forEach(s=>{const sd=Math.hypot(s.x-ox,s.y-oy),lit=Math.max(0,1-Math.abs(sd-sr)/(72*DPR));
+          const base=0.12+0.09*Math.sin(now*0.004+s.tw),a2=Math.min(1,base+lit*0.9);
+          ctx.fillStyle='rgba(255,250,235,'+a2.toFixed(3)+')';ctx.beginPath();ctx.arc(s.x,s.y,s.r*(1+lit*1.7),0,6.2832);ctx.fill();});}
+      else{near.forEach(s=>{const base=0.1+0.07*Math.sin(now*0.004+s.tw);
+        ctx.fillStyle='rgba(255,250,235,'+base.toFixed(3)+')';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.2832);ctx.fill();});}
+    }
+    /* glowing debris drifting outward */
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.life++;p.x+=p.vx;p.y+=p.vy;p.vx*=0.97;p.vy=p.vy*0.97+0.02*DPR;
+      const lk=p.life/p.max;if(lk>=1){parts.splice(i,1);continue;}
+      ctx.fillStyle='rgba('+p.col+','+((1-lk)*0.9).toFixed(3)+')';ctx.beginPath();ctx.arc(p.x,p.y,p.r*(1-lk*0.5),0,6.2832);ctx.fill();}
+    ctx.globalCompositeOperation='source-over';
+    /* 6: the galaxy settles back to normal */
+    if(el>=DUR){cv.classList.remove('on');setTimeout(()=>ctx.clearRect(0,0,W,H),900);window.__novaActive=false;removeEventListener('resize',size);return;}
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+window.triggerSupernova=triggerSupernova;   /* exposed for manual testing in the console */
+/* arm the event once per session (~2% chance), firing 12-52s in while the tab is visible */
+(function(){
+  if(Math.random()>=0.02)return;
+  const fire=()=>{if(document.hidden){const h=()=>{if(!document.hidden){document.removeEventListener('visibilitychange',h);triggerSupernova();}};document.addEventListener('visibilitychange',h);}else triggerSupernova();};
+  setTimeout(fire,12000+Math.random()*40000);
+})();
 
 /* ---------- twinkling starfield (hero + final CTA) ---------- */
 function initStarfield(cv){
@@ -1550,7 +1782,7 @@ function certTemplate(d){
    +'<div class="ct-foot">'
    +'<div class="ct-sig">'+SIG1+'<span>The Astralis Registry</span><small>Official registrar</small></div>'
    +'<div class="ct-qr"><small>Registry ID</small><span class="c-id">'+d.id+'</span></div>'
-   +'<div class="ct-sig">'+SIG2+'<span>Astralis</span><small>Guaranteed for life</small></div>'
+   +'<div class="ct-sig"><img class="ct-sigimg" src="'+(window.CERT_SIG||'/signature.png')+'" alt="Astralis signature"/><span>Astralis</span><small>Chief Executive Officer</small></div>'
    +'</div>'
    +'<div class="ct-bottom">This star will shine forever, just like the memories you create</div>'
    +'</div>';
@@ -1908,6 +2140,37 @@ function buildGalaxy(){
   E.groups.featured=makePoints(buckets.featured,texFeat,3.4,false); /* premium, only slightly larger */
   E.indexMaps={available:buckets.available,reserved:buckets.reserved,featured:buckets.featured};
 
+  /* ---------- cursor gravity ----------
+     A tiny pull of nearby stars toward the cursor, done entirely on the GPU via a
+     vertex displacement (onBeforeCompile). It moves only the *rendered* vertex, so
+     the CPU position buffers — and therefore raycasting, hitboxes and selection —
+     are completely unaffected. Closer stars are pulled more (smoothstep falloff),
+     max ~1-3px; strength eases in/out so stars spring back when the cursor leaves. */
+  E.grav={uRayO:{value:new THREE.Vector3()},uRayD:{value:new THREE.Vector3(0,0,-1)},
+          uActive:{value:0},uR:{value:0.10},uPull:{value:0.0026}};
+  const applyGravity=mat=>{
+    mat.onBeforeCompile=sh=>{
+      sh.uniforms.uRayO=E.grav.uRayO;sh.uniforms.uRayD=E.grav.uRayD;
+      sh.uniforms.uActive=E.grav.uActive;sh.uniforms.uR=E.grav.uR;sh.uniforms.uPull=E.grav.uPull;
+      /* Pull every star toward the cursor RAY by its perpendicular (screen-space)
+         distance, with the offset scaled by depth so the displacement is a
+         constant ~1-3px everywhere — uniform across the whole field, no matter
+         how near or far the star sits. Smooth smoothstep falloff. */
+      sh.vertexShader='uniform vec3 uRayO;uniform vec3 uRayD;uniform float uActive;uniform float uR;uniform float uPull;\n'
+        +sh.vertexShader.replace('#include <begin_vertex>',
+          '#include <begin_vertex>\n'
+          +'vec3 gRel=position-uRayO;float gT=dot(gRel,uRayD);'
+          +'if(gT>1.0){vec3 gPerp=(uRayO+uRayD*gT)-position;'
+          +'float gd=length(gPerp);float gScreen=gd/gT;'
+          +'float gf=(1.0-smoothstep(0.0,uR,gScreen))*uPull*gT*uActive;'
+          +'transformed+=gPerp/max(gd,0.0001)*gf;}');
+    };
+    mat.needsUpdate=true;
+  };
+  applyGravity(E.groups.available.material);
+  applyGravity(E.groups.reserved.material);
+  applyGravity(E.groups.featured.material);
+
   /* --- assign every pre-claimed (reserved) star a unique name, then build the
      search index. Customer-named stars from localStorage override/extend it. --- */
   E.names={};
@@ -2149,7 +2412,7 @@ function bindControls(){
   cv.addEventListener('pointerup',()=>{drag=false;pan=false;});
   cv.addEventListener('pointermove',e=>{
     E.mouse.x=(e.clientX/innerWidth)*2-1;E.mouse.y=-(e.clientY/innerHeight)*2+1;
-    E.tipXY=[e.clientX,e.clientY];
+    E.tipXY=[e.clientX,e.clientY];E.pointerOver=true;
     if((!drag&&!pan)||!canLook())return;
     const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;
     if(pan){
@@ -2184,6 +2447,9 @@ function bindControls(){
   });
   cv.addEventListener('pointerdown',e=>{E.downXY=[e.clientX,e.clientY];});
   cv.addEventListener('pointerup',e=>{E.justDragged=Math.hypot(e.clientX-E.downXY[0],e.clientY-E.downXY[1])>6;});
+  /* gravity: only pull while the cursor is actually over the galaxy */
+  cv.addEventListener('pointerenter',()=>E.pointerOver=true);
+  cv.addEventListener('pointerleave',()=>E.pointerOver=false);
 }
 
 /* ---------- hover raycast ---------- */
@@ -2200,7 +2466,7 @@ function doHover(){
   const tip=$('#starTip');
   if(!best){E.hover=-1;tip.classList.remove('on');$('#gl').style.cursor='grab';return;}
   const gi=E.indexMaps[bestKey][best.index];
-  E.hover=(bestKey==='reserved')?-1:gi;
+  E.hover=gi;   /* claimed (reserved) stars are explorable too — ownership shown in the tooltip/detail, not by blocking */
   const v=new THREE.Vector3(E.positions[gi*3],E.positions[gi*3+1],E.positions[gi*3+2]);
   const info=starInfo(gi,v);
   const tnm=starName(gi);
@@ -2213,7 +2479,7 @@ function doHover(){
   st.textContent=info.status==='reserved'?'Already named':info.status==='featured'?'Featured premium star':'Available to name';
   if(E.tipXY){tip.style.left=Math.min(innerWidth-260,E.tipXY[0])+'px';tip.style.top=Math.min(innerHeight-220,E.tipXY[1])+'px';}
   tip.classList.add('on');
-  $('#gl').style.cursor=info.status==='reserved'?'not-allowed':'pointer';
+  $('#gl').style.cursor='pointer';   /* standard cursor for every star, claimed or not */
 }
 
 /* ---------- selection ---------- */
@@ -3207,7 +3473,27 @@ function loop(){
   updateBlackHole(now,dt);
 
   if(E.phase==='explore')doHover();
+  updateGravity(dt);
   E.renderer.render(E.scene,E.camera);
+}
+
+/* Drive the cursor-gravity uniforms (cheap: a couple of vectors per frame; the
+   actual per-star displacement runs on the GPU). Stars ease toward the cursor and
+   spring back as the strength fades when the pointer leaves / a star is selected. */
+const _gravD=new THREE.Vector3();
+function updateGravity(dt){
+  const E=EXP,g=E.grav;if(!g)return;
+  const active=(E.phase==='explore'&&E.pointerOver)?1:0;
+  /* a single eased "field strength" drives the whole effect — no per-star state,
+     so movement is uniform and free of jitter; eases in and springs back out */
+  g.uActive.value+=(active-g.uActive.value)*Math.min(1,0.07*dt);
+  if(g.uActive.value<0.002&&!active)return;                        /* fully settled — skip */
+  E.raycaster.setFromCamera(E.mouse,E.camera);
+  g.uRayO.value.copy(E.camera.position);
+  _gravD.copy(E.raycaster.ray.direction);
+  /* ease the ray direction toward the cursor so the field glides smoothly and
+     never snaps, even on fast pointer moves or while orbiting */
+  g.uRayD.value.lerp(_gravD,Math.min(1,0.14*dt)).normalize();
 }
 
 /* =================================================================
