@@ -2720,7 +2720,7 @@ function startConstellation(canvas,c,reduced){
   const adj=Array.from({length:N},()=>[]);
   c.edges.forEach(e=>{adj[e[0]].push(e[1]);adj[e[1]].push(e[0]);});
   let root=0;for(let i=1;i<N;i++)if(c.stars[i][0]<c.stars[root][0])root=i;
-  const LEAD=320,EDGE_DUR=380;                       /* snappy per-connection delay (~50% less) */
+  const LEAD=320,EDGE_DUR=456;                       /* per-connection travel/delay (20% slower) */
   const starLit=new Array(N).fill(Infinity),dep=new Array(N).fill(0),vis=new Array(N).fill(false);
   starLit[root]=LEAD;vis[root]=true;
   const q=[root];
@@ -2732,6 +2732,9 @@ function startConstellation(canvas,c,reduced){
     return {from,to:from===e[0]?e[1]:e[0],start:starLit[from],dep:dep[from]};
   });
   const buildEnd=Math.max(LEAD,...edges.map(e=>e.start+EDGE_DUR)),POP=300;
+  /* a single "starlight" trace once charted (30% slower than before), then quiet */
+  const SURGE_SPARK=837,SURGE_STAGGER=164,surgeStart=buildEnd+220;
+  const chartedAt=surgeStart+Math.max(0,...edges.map(e=>e.dep))*SURGE_STAGGER+SURGE_SPARK;
   const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
   const t0=performance.now();
   const dot=(x,y,r,col,blur)=>{ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=blur*DPR;
@@ -2765,13 +2768,13 @@ function startConstellation(canvas,c,reduced){
         dot(P[0],P[1],r*pop,k<1?'rgba(255,247,230,1)':'rgba(244,224,170,1)',(k<1?14:5)+3*breathe);
       }
     });
-    /* once charted, golden pulses keep flowing outward (left→right) so the
-       network stays alive instead of sitting in a dead pause */
-    if(!reduced&&el>buildEnd+200){
-      const CYCLE=2100,SPARK=560,base=el-buildEnd-200;
+    /* once charted, ONE slow golden trace sweeps outward (left→right) through the
+       network — then it goes quiet (a deliberate pause before entering) */
+    if(!reduced&&el>surgeStart){
+      const base=el-surgeStart;
       edges.forEach(info=>{
-        const local=base-info.dep*110;if(local<0)return;
-        const k=(local%CYCLE)/SPARK;if(k>1)return;
+        const local=base-info.dep*SURGE_STAGGER;if(local<0||local>SURGE_SPARK)return;
+        const k=local/SURGE_SPARK;
         const A=map(c.stars[info.from][0],c.stars[info.from][1]);
         const B=map(c.stars[info.to][0],c.stars[info.to][1]);
         dot(A[0]+(B[0]-A[0])*k,A[1]+(B[1]-A[1])*k,2.7,'rgba(255,251,235,'+(Math.sin(k*Math.PI)*0.9).toFixed(3)+')',12);
@@ -2781,7 +2784,7 @@ function startConstellation(canvas,c,reduced){
     raf=requestAnimationFrame(frame);
   }
   raf=requestAnimationFrame(frame);
-  return {stop(){running=false;if(raf)cancelAnimationFrame(raf);removeEventListener('resize',layout);},buildEnd};
+  return {stop(){running=false;if(raf)cancelAnimationFrame(raf);removeEventListener('resize',layout);},buildEnd,chartedAt};
 }
 
 /* Orchestrate one loading screen (fixed 7s): pick a constellation + fact, chart
@@ -2804,18 +2807,19 @@ function runStarLoader(done){
   const cst=startConstellation($('#slCstCanvas'),c,false);
   const stopAll=()=>{bg.stop();cst.stop();};
 
-  const TOTAL=7000;                                    /* fixed 7-second loading screen */
   void sl.offsetWidth;                                 /* reflow so .play replays on relaunch */
   sl.classList.add('play');                            /* phase-in of the logo + subtitle + fact */
   requestAnimationFrame(()=>sl.classList.add('in'));
   later(preload,520);                                  /* preload the galaxy behind the fade-in */
-  later(()=>sl.classList.add('complete'),Math.min(TOTAL-1200,cst.buildEnd+200)); /* logo brightens */
-  /* Seamless hand-off (no flash of the hero page): bring the explorer up first
-     and let it become fully opaque BENEATH the still-opaque loader, then fade the
-     loader out to reveal it. Fading both at once would briefly show the page. */
-  later(()=>done(),TOTAL);                             /* explorer fades in beneath us (~0.8s) */
-  later(()=>sl.classList.add('out'),TOTAL+900);        /* only now fade the loader → reveals galaxy */
-  later(()=>{stopAll();sl.classList.remove('show','in','out','play','complete');},TOTAL+2200);
+  later(()=>sl.classList.add('complete'),cst.buildEnd+220); /* logo brightens once charted */
+  /* the single trace finishes at chartedAt; hold a quiet ~1.2s beat, then enter.
+     Seamless hand-off (no hero-page flash): the explorer fades in BENEATH the
+     still-opaque loader during the pause, and only when it's opaque do we fade
+     the loader out — so at chartedAt+1.2s the galaxy is revealed cleanly. */
+  const enterAt=cst.chartedAt+1200;
+  later(()=>done(),cst.chartedAt+400);                 /* explorer fades in beneath (opaque by enterAt) */
+  later(()=>sl.classList.add('out'),enterAt);          /* reveal the galaxy at chartedAt + 1.2s */
+  later(()=>{stopAll();sl.classList.remove('show','in','out','play','complete');},enterAt+1300);
 }
 
 /* public entry: every explorer launch smoothly zooms the camera into the galaxy */
