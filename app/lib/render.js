@@ -68,6 +68,13 @@ export async function renderCertificate(html) {
     await page.waitForFunction('window.__certReady === true', { timeout: 15000 }).catch(() => {});
     await new Promise((r) => setTimeout(r, 250));
 
+    // Render the PDF with SCREEN styles, not print. The certificate CSS carries
+    // an @media print block (used by the in-browser "download" via window.print)
+    // that hides everything except the client viewer — under print media that
+    // blanks the server #stage entirely. The certificate is authored for screen
+    // (cqw container units), so emulate screen media for a faithful PDF.
+    await page.emulateMediaType('screen');
+
     const pdf = await page.pdf({
       width: `${CERT_W}px`,
       height: `${CERT_H}px`,

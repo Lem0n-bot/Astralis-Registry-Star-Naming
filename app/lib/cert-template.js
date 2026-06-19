@@ -98,36 +98,52 @@ ${fontLink}
 <div id="stage"><div class="cert${ivory ? ' ivory' : ''}" id="C"></div></div>
 <script>
 window.CERT_SIG=${JSON.stringify(signatureUri())};
+window.CERT_DATA=${JSON.stringify(data)};
 ${h1}
 ${gen}
+</script>
+<script>
+/* Render in a SEPARATE <script> so that any failure in the generators above
+   (e.g. a canvas texture misbehaving under headless Chromium) can never leave
+   the certificate blank — certTemplate is hoisted globally and still callable.
+   Render the content FIRST, then key the signature's white background to
+   transparency as a best-effort enhancement. A safety timeout guarantees
+   window.__certReady is set even if the signature image never fires an event. */
 (function(){
-  var DATA=${JSON.stringify(data)};
-  function render(){
-    document.getElementById('C').innerHTML=certTemplate(DATA);
-    if(DATA.certId){
-      var qr=document.querySelector('#C .ct-qr');
-      if(qr){
-        var s=document.createElement('div');
-        s.style.cssText='margin-top:.5cqw;font-size:1.12cqw;letter-spacing:.1em;text-transform:uppercase;color:var(--cmut)';
-        s.textContent='Certificate No. '+DATA.certId;
-        qr.appendChild(s);
-      }
+  var DATA=window.CERT_DATA||{};
+  try{ document.getElementById('C').innerHTML=certTemplate(DATA); }
+  catch(e){ try{ console.error('[cert] render failed:', e&&e.message); }catch(_){} }
+  if(DATA.certId){
+    var qr=document.querySelector('#C .ct-qr');
+    if(qr){
+      var s=document.createElement('div');
+      s.style.cssText='margin-top:.5cqw;font-size:1.12cqw;letter-spacing:.1em;text-transform:uppercase;color:var(--cmut)';
+      s.textContent='Certificate No. '+DATA.certId;
+      qr.appendChild(s);
     }
-    window.__certReady=true;
   }
-  // key the signature's white background to transparency, then render
-  if(window.CERT_SIG){
-    var img=new Image();
-    img.onload=function(){try{
-      var c=document.createElement('canvas');c.width=img.naturalWidth||500;c.height=img.naturalHeight||500;
-      var x=c.getContext('2d');x.drawImage(img,0,0);
-      var d=x.getImageData(0,0,c.width,c.height),a=d.data;
-      for(var i=0;i<a.length;i+=4){var r=a[i],g=a[i+1],b=a[i+2],mn=Math.min(r,g,b),mx=Math.max(r,g,b);
-        if(mn>205&&mx-mn<26)a[i+3]=0;else if(mn>140)a[i+3]=Math.round(a[i+3]*(1-(mn-140)/130));}
-      x.putImageData(d,0,0);window.CERT_SIG=c.toDataURL('image/png');
-    }catch(e){}render();};
-    img.onerror=render;img.src=window.CERT_SIG;
-  } else render();
+  var ready=false;
+  function done(){ if(ready)return; ready=true; window.__certReady=true; }
+  setTimeout(done,2500); // never block the render waiting on the signature image
+  try{
+    if(window.CERT_SIG){
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var c=document.createElement('canvas');c.width=img.naturalWidth||500;c.height=img.naturalHeight||500;
+          var x=c.getContext('2d');x.drawImage(img,0,0);
+          var d=x.getImageData(0,0,c.width,c.height),a=d.data;
+          for(var i=0;i<a.length;i+=4){var r=a[i],g=a[i+1],b=a[i+2],mn=Math.min(r,g,b),mx=Math.max(r,g,b);
+            if(mn>205&&mx-mn<26)a[i+3]=0;else if(mn>140)a[i+3]=Math.round(a[i+3]*(1-(mn-140)/130));}
+          x.putImageData(d,0,0);var keyed=c.toDataURL('image/png');
+          var ims=document.querySelectorAll('#C .ct-sigimg');for(var j=0;j<ims.length;j++)ims[j].src=keyed;
+        }catch(e){}
+        done();
+      };
+      img.onerror=done;
+      img.src=window.CERT_SIG;
+    } else done();
+  }catch(e){ done(); }
 })();
 </script>
 </body></html>`;

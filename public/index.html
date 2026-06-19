@@ -716,7 +716,7 @@ footer a:hover{color:var(--gold)}
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>Instant digital delivery</span>
       </div>
       <div class="hero-stats fx in d3">
-        <div class="hstat"><div class="n" data-registry>50,000</div><div class="l">Stars named</div></div>
+        <div class="hstat"><div class="n" data-registry>12,177</div><div class="l">Stars named</div></div>
         <div class="hstat"><div class="n" data-count="49" data-decimal="1">0</div><div class="l">Average rating</div></div>
         <div class="hstat"><div class="n">SSL</div><div class="l">Secure checkout</div></div>
       </div>
@@ -841,10 +841,10 @@ footer a:hover{color:var(--gold)}
   <div class="wrap">
     <div class="center fx">
       <span class="eyebrow">Loved around the world</span>
-      <h2>Over 50,000 Stars Named Worldwide</h2>
+      <h2>Over 12,000 Stars Named Worldwide</h2>
     </div>
     <div class="counters fx d1">
-      <div class="counter center"><div class="n" data-registry>50,000</div><div class="l">Stars named</div></div>
+      <div class="counter center"><div class="n" data-registry>12,177</div><div class="l">Stars named</div></div>
       <div class="counter center"><div class="n" data-count="10482">0</div><div class="l">Total reviews</div></div>
       <div class="counter center"><div class="n" data-count="4193">0</div><div class="l">Five-star reviews</div></div>
       <div class="counter center"><div class="n" data-count="96" data-suffix="%">0</div><div class="l">Would claim again</div></div>
@@ -1325,8 +1325,8 @@ $$('[data-count]').forEach(el=>cio.observe(el));
   function fetchRegistryCount(){
     /* TODO: replace with a real API call. For now simulate believable growth
        (~10/day) from a baseline so the registry feels active and alive. */
-    const EPOCH=Date.UTC(2026,5,1),hours=(Date.now()-EPOCH)/3600000;
-    return 49990+Math.floor(hours*0.42);
+    const EPOCH=Date.UTC(2026,5,19),hours=(Date.now()-EPOCH)/3600000;
+    return 12177+Math.floor(hours*0.42);
   }
   let target=fetchRegistryCount(),shown=target,raf=0;
   const fmt=n=>Math.round(n).toLocaleString();
