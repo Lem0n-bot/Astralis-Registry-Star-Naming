@@ -3526,7 +3526,15 @@ function loop(){
   updateMeteors(now,dt);
   updateBlackHole(now,dt);
 
-  if(E.phase==='explore')doHover();
+  /* the hover pick raycasts every star × 3 groups (O(n)) — the loop's heaviest CPU
+     step. Skip it while the field is being rotated (hover isn't wanted then, and
+     it's most expensive), and otherwise only run it every other frame. Both are
+     imperceptible to hover feel but markedly smoother. */
+  if(E.phase==='explore'){
+    if(Math.abs(E.vel.t)>0.002||Math.abs(E.vel.p)>0.002){
+      if(E.hover!==-1){E.hover=-1;$('#starTip').classList.remove('on');}
+    }else if(((E.hoverTick=(E.hoverTick||0)+1)&1)===0)doHover();
+  }
   updateGravity(dt);
   E.renderer.render(E.scene,E.camera);
 }

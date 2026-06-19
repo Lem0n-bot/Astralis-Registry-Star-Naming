@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const C = {
   gold: '#D9B96C',
@@ -16,6 +16,54 @@ const money = (cents, cur) => (cents == null ? '' : `$${(cents / 100).toFixed(2)
 
 export default function CheckoutSuccess() {
   const [state, setState] = useState({ loading: true, error: null, data: null });
+  const skyRef = useRef(null);
+
+  // twinkling starfield + occasional shooting stars, matching the hero background
+  useEffect(() => {
+    const cv = skyRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    let W, H, raf = 0, stars = [], shoots = [];
+    const resize = () => {
+      W = cv.width = Math.round(window.innerWidth * DPR);
+      H = cv.height = Math.round(window.innerHeight * DPR);
+      cv.style.width = window.innerWidth + 'px';
+      cv.style.height = window.innerHeight + 'px';
+      const n = Math.min(260, Math.floor((W * H) / 12000));
+      stars = Array.from({ length: n }, () => ({
+        x: Math.random() * W, y: Math.random() * H, r: (Math.random() * 1.3 + 0.3) * DPR,
+        tw: Math.random() * 6.2832, sp: 0.4 + Math.random() * 1.1, fl: 0, up: false,
+      }));
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    const frame = () => {
+      raf = requestAnimationFrame(frame);
+      ctx.clearRect(0, 0, W, H);
+      for (const s of stars) {
+        s.tw += 0.015 * s.sp;
+        if (s.fl === 0) { if (Math.random() < 0.00002) { s.fl = 0.01; s.up = true; } }
+        else if (s.up) { s.fl = Math.min(1, s.fl + 0.04); if (s.fl >= 1) s.up = false; }
+        else { s.fl *= 0.985; if (s.fl < 0.02) s.fl = 0; }
+        const a = Math.min(1, 0.22 + 0.5 * Math.abs(Math.sin(s.tw)) + s.fl * 0.7);
+        ctx.fillStyle = `rgba(${s.r > 1.1 * DPR ? '255,248,232' : '228,236,255'},${a.toFixed(3)})`;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r * (1 + s.fl * 0.8), 0, 6.2832); ctx.fill();
+      }
+      if (Math.random() < 0.004 && shoots.length < 2)
+        shoots.push({ x: W * (0.55 + Math.random() * 0.45), y: Math.random() * H * 0.3, vx: -(6 + Math.random() * 5) * DPR, vy: (3 + Math.random() * 2) * DPR, life: 1 });
+      for (let i = shoots.length - 1; i >= 0; i--) {
+        const sh = shoots[i]; sh.x += sh.vx; sh.y += sh.vy; sh.life -= 0.018;
+        if (sh.life <= 0) { shoots.splice(i, 1); continue; }
+        const g = ctx.createLinearGradient(sh.x, sh.y, sh.x - sh.vx * 9, sh.y - sh.vy * 9);
+        g.addColorStop(0, `rgba(255,250,235,${sh.life})`); g.addColorStop(1, 'rgba(255,250,235,0)');
+        ctx.strokeStyle = g; ctx.lineWidth = 1.6 * DPR;
+        ctx.beginPath(); ctx.moveTo(sh.x, sh.y); ctx.lineTo(sh.x - sh.vx * 9, sh.y - sh.vy * 9); ctx.stroke();
+      }
+    };
+    raf = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
+  }, []);
 
   useEffect(() => {
     const sid = new URLSearchParams(window.location.search).get('session_id');
@@ -41,6 +89,8 @@ export default function CheckoutSuccess() {
 
   return (
     <main style={styles.page}>
+      <canvas ref={skyRef} style={styles.sky} aria-hidden="true" />
+      <div style={styles.nebula} aria-hidden="true" />
       <div style={styles.card}>
         <div style={styles.brand}>ASTRALIS</div>
         <div style={styles.eyebrow}>Registry</div>
@@ -117,10 +167,15 @@ export default function CheckoutSuccess() {
                 : 'Printed keepsakes ship within Australia. You can safely close this page — everything is on its way.'}
             </p>
 
-            {data.portalUrl ? (
+            {(data.certificates?.[0]?.pdfUrl || data.portalUrl) ? (
               <>
-                <a href={data.portalUrl} style={styles.btnGold}>
-                  View &amp; download your certificate{(data.items?.length || 0) > 1 ? 's' : ''}
+                <a
+                  href={data.certificates?.[0]?.pdfUrl || data.portalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.btnGold}
+                >
+                  View your certificate{(data.items?.length || 0) > 1 ? 's' : ''}
                 </a>
                 <a href="/" style={styles.btnGhost}>Back to Astralis</a>
               </>
@@ -139,21 +194,34 @@ const styles = {
   page: {
     minHeight: '100svh',
     margin: 0,
+    position: 'relative',
+    overflow: 'hidden',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '24px 16px',
-    background: `radial-gradient(900px 600px at 70% 10%, rgba(123,92,240,.16), transparent 60%), #070917`,
+    background: '#05070F',
     fontFamily: C.sans,
     color: C.star,
   },
+  // full-screen twinkling starfield + nebula glow, exactly like the hero
+  sky: { position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' },
+  nebula: {
+    position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
+    background:
+      'radial-gradient(1200px 700px at 70% 20%,rgba(123,92,240,.16),transparent 60%),' +
+      'radial-gradient(900px 600px at 15% 85%,rgba(27,17,64,.7),transparent 65%)',
+  },
   card: {
+    position: 'relative',
+    zIndex: 1,
     width: 'min(480px, 100%)',
-    background: 'linear-gradient(180deg,#10142E,#0A0D20)',
+    background: 'linear-gradient(180deg,rgba(16,20,46,0.92),rgba(10,13,32,0.94))',
     border: '1px solid rgba(217,185,108,0.22)',
     borderRadius: 20,
     padding: '40px 28px',
     textAlign: 'center',
+    backdropFilter: 'blur(8px)',
     boxShadow: '0 40px 110px rgba(0,0,0,.6)',
   },
   brand: { fontFamily: C.serif, fontSize: 26, fontWeight: 600, letterSpacing: 2, color: C.gold },

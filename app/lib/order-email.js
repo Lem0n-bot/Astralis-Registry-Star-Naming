@@ -17,7 +17,7 @@ const PKG_NAMES = { standard: 'Standard', premium: 'Premium', ultimate: 'Ultimat
 function greetingName(email) {
   const local = String(email || '').split('@')[0] || '';
   const word = local.replace(/[._-]+/g, ' ').trim().split(' ')[0] || '';
-  if (!word || /\d/.test(word) || word.length < 2) return 'there';
+  if (!word || /\d/.test(word) || word.length < 2) return 'customer';
   return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }
 
@@ -89,7 +89,7 @@ export function orderConfirmationHtml(order, opts = {}) {
       <tr><td align="center" style="padding:18px 32px 2px 32px;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;color:#F2ECDD;">${plural ? 'Their stars are named.' : 'Their star is named.'}</td></tr>
       <tr><td align="left" style="padding:12px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#C9D0E6;">
         Dear ${esc(name)},<br><br>
-        Thank you — your payment was successful and your order is confirmed. Your personalised certificate${plural ? 's are' : ' is'} attached to this email as a high-resolution PDF, and you can download ${plural ? 'them' : 'it'} any time below.
+        Thank you for your support. Your payment was successful and your order is confirmed. Your personalised certificate${plural ? 's are' : ' is'} attached to this email as a high-resolution PDF, and you can download ${plural ? 'them' : 'it'} any time below.
       </td></tr>
       <tr><td align="left" style="padding:10px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#99A2C4;">
         Order <b style="color:#D9B96C;">${esc(order.orderNo)}</b>
@@ -103,7 +103,7 @@ export function orderConfirmationHtml(order, opts = {}) {
 
       ${portalUrl ? `
       <tr><td align="center" style="padding:8px 32px 20px 32px;">
-        <a href="${esc(portalUrl)}" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#1a1405;text-decoration:none;background:linear-gradient(135deg,#F2DCA2,#D9B96C);padding:13px 30px;border-radius:999px;">View &amp; download your certificate${plural ? 's' : ''}</a>
+        <a href="${esc(portalUrl)}" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#1a1405;text-decoration:none;background:linear-gradient(135deg,#F2DCA2,#D9B96C);padding:13px 30px;border-radius:999px;">View your certificate${plural ? 's' : ''}</a>
       </td></tr>` : ''}
 
       <tr><td style="padding:6px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#99A2C4;">Order summary</td></tr>
