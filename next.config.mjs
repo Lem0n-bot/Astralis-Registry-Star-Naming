@@ -34,6 +34,15 @@ const nextConfig = {
   // does not try to bundle them into the serverless function.
   experimental: {
     serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+    // @sparticuz/chromium loads its binaries (bin/*.br) via fs at runtime, so
+    // Next's file tracing can't see them and they go missing on Vercel — which
+    // makes the certificate PDF render (and thus the email attachment) fail.
+    // Force them into the certificate-rendering functions.
+    outputFileTracingIncludes: {
+      '/api/webhooks/stripe': ['./node_modules/@sparticuz/chromium/bin/**'],
+      '/api/checkout/order': ['./node_modules/@sparticuz/chromium/bin/**'],
+      '/api/orders/[id]/certificate/[certId]': ['./node_modules/@sparticuz/chromium/bin/**'],
+    },
   },
 
   async headers() {

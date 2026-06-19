@@ -224,6 +224,32 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .warp-text div{font-family:var(--display);font-size:clamp(1.3rem,3vw,2rem);font-style:italic;letter-spacing:.08em;color:var(--star);opacity:0;animation:warpline 2.8s ease forwards}
 @keyframes warpline{12%{opacity:1}70%{opacity:1}100%{opacity:0;letter-spacing:.25em}}
 
+/* ============ CERTIFICATE VIEWER ============ */
+#certView{position:fixed;inset:0;z-index:400;display:none;overflow:auto;
+  background:radial-gradient(1100px 760px at 50% -5%,#10163a,#05070f 58%,#03040d)}
+#certView.on{display:block}
+.cv-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.8rem 1.2rem;background:rgba(6,8,18,.72);backdrop-filter:blur(12px);border-bottom:1px solid rgba(217,185,108,.18)}
+.cv-brand{font-family:var(--display);letter-spacing:.3em;color:var(--gold);font-size:1.05rem}
+.cv-actions{display:flex;gap:.55rem;flex-wrap:wrap}
+.cv-btn{font-family:var(--body);font-size:.82rem;padding:.6rem 1.05rem;border-radius:999px;cursor:pointer;
+  border:1px solid rgba(217,185,108,.4);background:transparent;color:var(--star);text-decoration:none;white-space:nowrap}
+.cv-btn:hover{border-color:var(--gold)}
+.cv-btn.cv-dl{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:#1a1405;border-color:transparent;font-weight:600}
+.cv-stage{display:flex;flex-direction:column;align-items:center;gap:2rem;padding:2.4rem 1rem 4rem}
+.cv-stage .cert{width:min(620px,94vw);animation:none}
+.cv-msg{color:var(--mute);font-family:var(--display);font-size:1.3rem;text-align:center;padding:3rem 1rem;line-height:1.6}
+@media print{
+  @page{margin:8mm}
+  body>*{display:none!important}
+  #certView{display:block!important;position:static;overflow:visible;background:#fff}
+  #certView .cv-bar{display:none!important}
+  .cv-stage{padding:0;gap:0}
+  .cv-stage .cert{width:100%!important;box-shadow:none!important;border-radius:0!important;page-break-after:always}
+  /* force the galaxy/gold backgrounds to actually print (off by default) */
+  .cv-stage .cert,.cv-stage .cert *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+
 /* ============ RARE SUPERNOVA EVENT ============ */
 #supernovaFx{position:fixed;inset:0;width:100%;height:100%;z-index:350;pointer-events:none;
   opacity:0;display:none;transition:opacity .8s ease}
@@ -996,6 +1022,19 @@ footer a:hover{color:var(--gold)}
   <div id="toastText">Star reserved.</div>
 </div>
 
+<!-- ============ CERTIFICATE VIEWER (client-rendered + downloadable) ============ -->
+<div id="certView" hidden aria-label="Your certificate">
+  <div class="cv-bar">
+    <div class="cv-brand">ASTRALIS</div>
+    <div class="cv-actions">
+      <button class="cv-btn cv-dl" id="cvPrint">⤓&nbsp; Download / Print</button>
+      <a class="cv-btn cv-pdf" id="cvPdf" href="#" target="_blank" rel="noopener" hidden>High-res PDF</a>
+      <button class="cv-btn" id="cvClose">✕&nbsp; Close</button>
+    </div>
+  </div>
+  <div class="cv-stage" id="cvStage"></div>
+</div>
+
 <!-- ============ RARE SUPERNOVA EVENT ============ -->
 <canvas id="supernovaFx" aria-hidden="true"></canvas>
 <div id="novaNotice" aria-hidden="true">
@@ -1348,9 +1387,11 @@ $$('[data-count]').forEach(el=>cio.observe(el));
   const wrap=()=>{if(half>0){if(x<=-half)x+=half;else if(x>0)x-=half;}};
   const place=()=>{track.style.transform='translateX('+x.toFixed(2)+'px)';};
   function frame(now){
+    raf=requestAnimationFrame(frame);
+    if(window._ambientPaused){last=now;return;}   /* paused while the explorer is open */
     const dt=Math.min(3,(now-last)/16.667);last=now;
     if(!hover&&!dragging)x-=0.35*dt;          /* slow, luxurious drift */
-    wrap();place();raf=requestAnimationFrame(frame);
+    wrap();place();
   }
   raf=requestAnimationFrame(frame);
   vp.addEventListener('pointerenter',()=>{hover=true;});
@@ -1479,6 +1520,7 @@ function initStarfield(cv){
   function frame(t){
     raf=requestAnimationFrame(frame);
     beat=t;
+    if(window._ambientPaused)return;   /* paused (cheaply) while the explorer is open */
     cx.clearRect(0,0,W,H);
     for(const s of stars){
       s.tw+=0.015*s.sp;
@@ -2730,6 +2772,7 @@ function enterExplorer(launchZoom){
   ex.classList.add('open');
   requestAnimationFrame(()=>ex.classList.add('visible'));
   document.body.style.overflow='hidden';
+  window._ambientPaused=true;   /* pause the (hidden) homepage starfield/marquee for smoother 3D */
   if(!EXP.inited)buildGalaxy();
   const E=EXP;
   $('#detail').classList.remove('on');E.target.set(0,0,0);$('#warpText').hidden=true;
@@ -3144,6 +3187,7 @@ function openExplorerCinematic(){
 }
 function closeExplorer(instant){
   const ex=$('#explorer');
+  window._ambientPaused=false;   /* resume the homepage ambient animations */
   ex.classList.remove('visible');
   /* instant: hide immediately (used when a loading screen already covers us) */
   if(instant)ex.classList.remove('open');
@@ -4015,6 +4059,40 @@ $('#subpage').addEventListener('click',e=>{
     })
     .catch(()=>{btn.disabled=false;btn.textContent=old;fail();});
 });
+
+/* ---------- certificate viewer: render the personalised certificate client-side
+   (the same way the homepage preview is drawn) when arriving via
+   /?cert=<orderId>&token=<token>, with a print/save-as-PDF download. Works even
+   when the server-side PDF render is unavailable. ---------- */
+(function(){
+  const params=new URLSearchParams(location.search);
+  const cid=params.get('cert'),tok=params.get('token');
+  if(!cid||!tok)return;
+  const view=$('#certView'),stage=$('#cvStage');if(!view||!stage)return;
+  view.hidden=false;view.classList.add('on');document.body.style.overflow='hidden';
+  stage.innerHTML='<div class="cv-msg">Charting your certificate…</div>';
+  const ESC=['name','msg','recip','occ','ra','dec','cons','mag','sec','cls','id'];
+  fetch('/api/orders/'+encodeURIComponent(cid)+'/data?token='+encodeURIComponent(tok))
+    .then(r=>r.ok?r.json():Promise.reject(r.status))
+    .then(res=>{
+      const certs=(res&&res.certs)||[];
+      if(!certs.length){stage.innerHTML='<div class="cv-msg">No certificate was found for this order.</div>';return;}
+      stage.innerHTML='';let pdf=null;
+      certs.forEach(c=>{
+        const d=Object.assign({},c.data);
+        ESC.forEach(k=>{if(d[k]!=null)d[k]=esc(d[k]);});   /* user fields are inserted via innerHTML */
+        const el=document.createElement('div');
+        el.className='cert'+(c.theme==='ivory'?' ivory':'');
+        el.innerHTML=certTemplate(d);
+        stage.appendChild(el);
+        if(!pdf&&c.pdfUrl)pdf=c.pdfUrl;
+      });
+      if(pdf){const a=$('#cvPdf');a.href=pdf;a.hidden=false;}
+    })
+    .catch(()=>{stage.innerHTML='<div class="cv-msg">We couldn’t load this certificate. The link may have expired — please use the link in your confirmation email, or contact help.astralis@gmail.com.</div>';});
+  $('#cvClose').addEventListener('click',()=>{view.classList.remove('on');view.hidden=true;document.body.style.overflow='';history.replaceState({},'',location.pathname);});
+  $('#cvPrint').addEventListener('click',()=>window.print());
+})();
 </script>
 </body>
 </html>

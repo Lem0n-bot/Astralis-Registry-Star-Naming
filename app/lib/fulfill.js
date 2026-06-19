@@ -119,6 +119,7 @@ async function sendConfirmation(snap, certs) {
   const base = publicBase();
   const token = snap.token;
   const portalUrl = `${base}/orders/${snap.id}?token=${token}`;
+  const certViewUrl = `${base}/?cert=${snap.id}&token=${token}`;   // client-rendered, downloadable viewer
   const certLinks = certs.map((c) => ({
     certId: c.certId,
     name: c.name,
@@ -132,7 +133,7 @@ async function sendConfirmation(snap, certs) {
     if (pdf) attachments.push({ filename: `Astralis-Certificate-${c.certId}.pdf`, content: pdf.toString('base64') });
   }
 
-  const html = orderConfirmationHtml(snap, { certificates: certLinks, portalUrl });
+  const html = orderConfirmationHtml(snap, { certificates: certLinks, portalUrl, certViewUrl });
   const resend = new Resend(ENV.RESEND_API_KEY);
   const plural = certs.length > 1;
 

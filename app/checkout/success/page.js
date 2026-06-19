@@ -167,14 +167,9 @@ export default function CheckoutSuccess() {
                 : 'Printed keepsakes ship within Australia. You can safely close this page — everything is on its way.'}
             </p>
 
-            {(data.certificates?.[0]?.pdfUrl || data.portalUrl) ? (
+            {(data.certViewUrl || data.portalUrl) ? (
               <>
-                <a
-                  href={data.certificates?.[0]?.pdfUrl || data.portalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={styles.btnGold}
-                >
+                <a href={data.certViewUrl || data.portalUrl} style={styles.btnGold}>
                   View your certificate{(data.items?.length || 0) > 1 ? 's' : ''}
                 </a>
                 <a href="/" style={styles.btnGhost}>Back to Astralis</a>

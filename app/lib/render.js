@@ -22,11 +22,21 @@ async function launch() {
     });
   }
   const chromium = (await import('@sparticuz/chromium')).default;
-  return puppeteer.launch({
-    args: [...chromium.args, '--font-render-hinting=none'],
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
-  });
+  // The certificate only uses 2D <canvas> (no WebGL), so skip Chromium's GPU
+  // graphics stack — meaningfully less memory + faster cold start on Vercel.
+  try { chromium.setGraphicsMode = false; } catch {}
+  const executablePath = await chromium.executablePath();
+  try {
+    return await puppeteer.launch({
+      args: [...chromium.args, '--font-render-hinting=none'],
+      executablePath,
+      headless: chromium.headless,
+    });
+  } catch (e) {
+    // Surface the real reason in the function logs (binary missing / OOM / etc.)
+    console.error('[render] chromium launch failed:', e?.message, '| executablePath:', executablePath);
+    throw e;
+  }
 }
 
 function isConnected(b) {

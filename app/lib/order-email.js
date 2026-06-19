@@ -66,6 +66,7 @@ function certCard(c) {
 export function orderConfirmationHtml(order, opts = {}) {
   const certificates = opts.certificates || [];
   const portalUrl = opts.portalUrl || '';
+  const viewUrl = opts.certViewUrl || portalUrl;   // client-rendered viewer (falls back to portal)
   const name = greetingName(order.email);
   const d = order.delivery || {};
   const addr = [d.address1, d.address2, [d.suburb, d.city].filter(Boolean).join(', '), [d.state, d.postcode].filter(Boolean).join(' '), d.country]
@@ -101,9 +102,9 @@ export function orderConfirmationHtml(order, opts = {}) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${certificates.map(certCard).join('')}</table>
       </td></tr>` : ''}
 
-      ${portalUrl ? `
+      ${viewUrl ? `
       <tr><td align="center" style="padding:8px 32px 20px 32px;">
-        <a href="${esc(portalUrl)}" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#1a1405;text-decoration:none;background:linear-gradient(135deg,#F2DCA2,#D9B96C);padding:13px 30px;border-radius:999px;">View your certificate${plural ? 's' : ''}</a>
+        <a href="${esc(viewUrl)}" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#1a1405;text-decoration:none;background:linear-gradient(135deg,#F2DCA2,#D9B96C);padding:13px 30px;border-radius:999px;">View your certificate${plural ? 's' : ''}</a>
       </td></tr>` : ''}
 
       <tr><td style="padding:6px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#99A2C4;">Order summary</td></tr>

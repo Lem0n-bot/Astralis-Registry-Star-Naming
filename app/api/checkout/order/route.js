@@ -64,6 +64,7 @@ export async function GET(req) {
       : [],
     certificates,
     portalUrl: token ? `/orders/${orderId}?token=${token}` : null,
+    certViewUrl: token ? `/?cert=${orderId}&token=${token}` : null,
     emailStatus: snap?.emailStatus || null,
   });
 }
