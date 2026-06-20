@@ -238,12 +238,15 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .cv-btn.cv-dl{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:#1a1405;border-color:transparent;font-weight:600}
 .cv-stage{display:flex;flex-direction:column;align-items:center;gap:2rem;padding:2.4rem 1rem 4rem}
 .cv-stage .cert{width:min(620px,94vw);animation:none}
+.cv-pdflink{display:inline-flex;align-items:center;gap:.5rem;margin-top:-1.2rem;padding:.6rem 1.3rem;border-radius:999px;border:1px solid rgba(217,185,108,.4);background:rgba(217,185,108,.08);color:var(--gold-bright);text-decoration:none;font-size:.82rem;letter-spacing:.02em}
+.cv-pdflink:hover{background:rgba(217,185,108,.16)}
 .cv-msg{color:var(--mute);font-family:var(--display);font-size:1.3rem;text-align:center;padding:3rem 1rem;line-height:1.6}
 @media print{
   @page{margin:8mm}
   body>*{display:none!important}
   #certView{display:block!important;position:static;overflow:visible;background:#fff}
   #certView .cv-bar{display:none!important}
+  .cv-pdflink{display:none!important}
   .cv-stage{padding:0;gap:0}
   .cv-stage .cert{width:100%!important;box-shadow:none!important;border-radius:0!important;page-break-after:always}
   /* force the galaxy/gold backgrounds to actually print (off by default) */
@@ -1357,10 +1360,17 @@ $$('[data-count]').forEach(el=>cio.observe(el));
 /* ---------- publish the signature ----------
    signature.png is pre-processed to a smooth, transparent ink (white already
    keyed out), so it tints cleanly on either finish via the CSS invert on
-   midnight. Just expose it and refresh any already-rendered certificates. */
+   midnight. The embedded data URI (CERT_SIG_RAW) is defined further down this
+   script, so publish on DOMContentLoaded — by then it exists and every rendered
+   certificate can be pointed at it, which also works offline (file://). */
 (function(){
-  window.CERT_SIG=window.CERT_SIG_RAW||'/signature.png';
-  document.querySelectorAll('.ct-sigimg').forEach(el=>{el.src=window.CERT_SIG;});
+  function publish(){
+    if(!window.CERT_SIG_RAW)return;
+    window.CERT_SIG=window.CERT_SIG_RAW;
+    document.querySelectorAll('.ct-sigimg').forEach(el=>{el.src=window.CERT_SIG;});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',publish);
+  else publish();
 })();
 
 /* ---------- review carousel: continuous marquee + drag/swipe, pause on hover ----------
@@ -4069,7 +4079,7 @@ $('#subpage').addEventListener('click',e=>{
     .then(res=>{
       const certs=(res&&res.certs)||[];
       if(!certs.length){stage.innerHTML='<div class="cv-msg">No certificate was found for this order.</div>';return;}
-      stage.innerHTML='';let pdf=null;
+      stage.innerHTML='';let pdf=null;const many=certs.length>1;
       certs.forEach(c=>{
         const d=Object.assign({},c.data);
         ESC.forEach(k=>{if(d[k]!=null)d[k]=esc(d[k]);});   /* user fields are inserted via innerHTML */
@@ -4077,9 +4087,17 @@ $('#subpage').addEventListener('click',e=>{
         el.className='cert'+(c.theme==='ivory'?' ivory':'');
         el.innerHTML=certTemplate(d);
         stage.appendChild(el);
+        if(c.pdfUrl){                                       /* a high-res PDF download per certificate */
+          const dl=document.createElement('a');
+          dl.className='cv-pdflink';dl.href=c.pdfUrl;dl.target='_blank';dl.rel='noopener';
+          dl.textContent='⤓  High-res PDF'+(many&&c.data&&c.data.name?' · '+c.data.name:'');
+          stage.appendChild(dl);
+        }
         if(!pdf&&c.pdfUrl)pdf=c.pdfUrl;
       });
-      if(pdf){const a=$('#cvPdf');a.href=pdf;a.hidden=false;}
+      /* the toolbar shortcut links a single order's only PDF; multi-cert orders
+         use the per-certificate links above (and "Download / Print" for all). */
+      if(pdf&&!many){const a=$('#cvPdf');a.href=pdf;a.hidden=false;}
     })
     .catch(()=>{stage.innerHTML='<div class="cv-msg">We couldn’t load this certificate. The link may have expired — please use the link in your confirmation email, or contact help.astralis@gmail.com.</div>';});
   $('#cvClose').addEventListener('click',()=>{view.classList.remove('on');view.hidden=true;document.body.style.overflow='';history.replaceState({},'',location.pathname);});
