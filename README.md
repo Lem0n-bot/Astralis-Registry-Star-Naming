@@ -258,9 +258,11 @@ changes.
 
 [LinkedIn](https://www.linkedin.com/in/anh-tuna-nguyen) · [GitHub](https://github.com/Lem0n-bot) · [Astralis Registry](https://astralisregistry.com)
 
-**IMPORTANT: Tunafishy-T is my school account"
+**IMPORTANT**
 
+Tunafishy-T is my school account:
 [angu0207@student.monash.edu](angu0207@student.monash.edu)
+
 ---
 
 *Astralis star naming is symbolic and not affiliated with the International Astronomical Union.*
