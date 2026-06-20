@@ -15,3 +15,5 @@ build-*.js
 
 .vercel
 .env*
+# commit the env template (no secrets) so collaborators can self-configure
+!.env.example

@@ -1,3 +1,13 @@
+/**
+ * Identifier + token minting for the order/fulfilment system.
+ *
+ * - newOrderId / newCertId — collision-resistant ids from a CSPRNG. newCertId is
+ *   the human-readable certificate number printed on each PDF (AST-CERT-YYYY-XXXX).
+ * - signToken / verifyToken — HMAC-SHA256 tokens that gate the no-login order
+ *   portal and certificate downloads. The token IS the only credential (there
+ *   are no accounts), so it must be unguessable — set ORDER_TOKEN_SECRET in
+ *   production — and is compared in constant time to resist timing attacks.
+ */
 import crypto from 'node:crypto';
 import { ENV } from './env.js';
 

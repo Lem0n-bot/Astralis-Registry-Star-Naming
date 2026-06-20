@@ -1,4 +1,53 @@
 <!DOCTYPE html>
+<!--
+  ============================================================================
+  ASTRALIS — single-file marketing + commerce front end
+  ============================================================================
+  This one file IS the customer-facing application: markup, CSS and all
+  JavaScript, dependency-free except Three.js (r128, CDN) and Google Fonts. It
+  is served at the site root via a rewrite in next.config.mjs; the Next.js app/
+  around it provides only the checkout / email / certificate BACKEND.
+
+  DUPLICATE-FILE WARNING: /astralis.html at the repo root is a byte-identical
+  copy of this file. public/index.html is the one actually served — treat it as
+  canonical and re-copy it to astralis.html after every edit (the two must match).
+
+  HOW TO NAVIGATE — search for the "===== SECTION =====" banners:
+    CSS (top of <head>)   Design tokens (:root custom properties), then NAV,
+                          HERO, GALAXY EXPLORER, PACKAGES, PERSONALISE,
+                          CERTIFICATE, CHECKOUT, SUB-PAGES (same order as markup).
+    <body> markup         Nav · Hero · Galaxy explorer overlay · Packages ·
+                          Personalise + live certificate · Promo · Reviews ·
+                          FAQ · Checkout modal · Sub-page (router) containers.
+    <script> (bottom), in banner-marked blocks:
+      • Front-of-site     $/$$ helpers, cookie-consent banner, 2D canvas
+                          starfield, scroll reveals & counters (IntersectionObserver),
+                          reservation timer, live registry counter, Web Audio
+                          ambience, reviews.
+      • Certificate engine certTemplate(d) + canvas texture generators render
+                          three live certificate instances in two finishes.
+      • Galaxy explorer   Three.js scene: 38k stars as THREE.Points in three
+                          availability groups, custom orbit controls (the CDN
+                          build ships none), camera tweens, GPU gravity, warp intro.
+      • Cart + checkout   cart state, multi-step checkout, email verification,
+                          and the Stripe redirect (POST /api/checkout/create-session).
+      • Sub-pages         PAGES object + lightweight client-side router.
+      • Certificate viewer reads ?cert=<id>&token=<t> and renders the buyer's
+                          certificate(s) client-side for view / print / download.
+
+  KEY INVARIANTS (full rationale in CLAUDE.md and docs/ARCHITECTURE.md):
+    • No client database: every star's record (id, coordinates, spectral type,
+      magnitude, availability/scarcity) is derived deterministically from a hash
+      of its index — nothing is stored or fetched.
+    • No binary assets: textures are painted on <canvas> at runtime and ambience
+      is synthesised with Web Audio. The signature is embedded as a data URI.
+    • Certificates are measured entirely in cqw units at a fixed 1:1.414 (A4) ratio.
+    • reduceMotion short-circuits heavy animation EXCEPT the loader/constellation,
+      which must always animate.
+    • Honest marketing is deliberate: copy states naming is symbolic and not
+      IAU-recognised — preserve this in any copy change.
+  ============================================================================
+-->
 <html lang="en-AU">
 <head>
 <meta charset="UTF-8">
@@ -487,6 +536,48 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .pop-note div small{font-size:.68rem;color:var(--mute)}
 @media(max-width:759px){.pop-note{display:none}}
 
+/* ============ COOKIE CONSENT ============
+   First-visit consent banner: glassmorphism + a soft cosmic aura, pinned bottom.
+   z-index 120 keeps it above page content but below every overlay (sub-page 250,
+   modal 300, toast 400) so it can never block interaction. The reveal is a
+   GPU-only opacity+transform transition (no layout/paint thrash → no Core Web
+   Vitals impact); reduced motion drops to a plain fade with no slide/twinkle. */
+.cc{position:fixed;left:50%;bottom:1.1rem;z-index:120;width:min(680px,calc(100% - 2rem));
+  transform:translate(-50%,150%);opacity:0;
+  background:var(--glass);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 42px rgba(217,185,108,.08);
+  transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .7s ease}
+.cc.on{transform:translate(-50%,0);opacity:1}
+.cc-glow{position:absolute;inset:-50% -25% auto auto;width:65%;height:180%;pointer-events:none;   /* decorative aura, top-right */
+  background:radial-gradient(58% 58% at 80% 22%,rgba(217,185,108,.20),transparent 70%),
+             radial-gradient(48% 48% at 66% 44%,rgba(123,92,240,.16),transparent 72%)}
+.cc-body{position:relative;display:flex;align-items:center;gap:1.4rem;padding:1.15rem 1.45rem;flex-wrap:wrap}
+.cc-text{flex:1 1 260px;min-width:240px}
+.cc-title{display:flex;align-items:center;gap:.55rem;font-family:var(--display);font-weight:600;font-size:1.28rem;color:var(--gold-bright)}
+.cc-star{width:1.05em;height:1.05em;color:var(--gold);flex:none;filter:drop-shadow(0 0 6px rgba(217,185,108,.5));animation:ccTwinkle 3.6s ease-in-out infinite}
+.cc-desc{margin-top:.4rem;font-size:.82rem;line-height:1.6;color:var(--mute);max-width:48ch}
+.cc-actions{display:flex;gap:.7rem;align-items:center;flex:none}
+.cc-btn{padding:.64rem 1.55rem;border-radius:999px;font-size:.82rem;font-weight:500;letter-spacing:.02em;white-space:nowrap;
+  transition:transform .25s ease,box-shadow .25s ease,background .25s,border-color .25s,color .25s}
+.cc-btn:hover{transform:translateY(-2px)}
+.cc-accept{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:#1a1405;font-weight:600;box-shadow:0 6px 20px rgba(217,185,108,.28)}
+.cc-accept:hover{box-shadow:0 11px 30px rgba(217,185,108,.46)}
+.cc-learn{background:rgba(255,255,255,.04);border:1px solid var(--glass-brd);color:var(--star)}
+.cc-learn:hover{border-color:var(--gold);color:var(--gold-bright)}
+@keyframes ccTwinkle{0%,100%{opacity:1}50%{opacity:.5}}
+@media(max-width:560px){
+  .cc{bottom:.7rem}
+  .cc-body{gap:.95rem;padding:1.05rem 1.15rem}
+  .cc-actions{width:100%}
+  .cc-btn{flex:1;text-align:center;padding:.7rem 1rem}
+}
+@media(prefers-reduced-motion:reduce){
+  .cc{transition:opacity .45s ease}
+  .cc-star{animation:none}
+  .cc-btn,.cc-btn:hover{transform:none}
+}
+
 /* ============ FAQ ============ */
 .faq{max-width:760px;margin:2.6rem auto 0}
 .q{border:1px solid var(--glass-brd);border-radius:14px;margin-bottom:.8rem;background:rgba(255,255,255,.025);overflow:hidden;transition:border-color .3s}
@@ -952,12 +1043,12 @@ footer a:hover{color:var(--gold)}
     <div class="promo fx">
       <div>
         <span class="eyebrow">Winter sky collection</span>
-        <h3 class="serif">Complimentary star map upgrade</h3>
-        <p class="p-sub">Free with every Premium and Ultimate order this week · <span id="popularNote">237 stars named in the past 24 hours</span></p>
+        <h3 class="serif">Complimentary star map &amp; free shipping</h3>
+        <p class="p-sub">Both free with every Premium and Ultimate order · <span id="popularNote">237 stars named in the past 24 hours</span></p>
       </div>
       <div style="display:flex;flex-direction:column;gap:1rem;align-items:flex-end">
         <div class="timer" id="timer" aria-label="Offer countdown">
-          <div class="t-cell"><div class="tn" id="t-d">10</div><div class="tl">Days</div></div>
+          <div class="t-cell"><div class="tn" id="t-d">14</div><div class="tl">Days</div></div>
           <div class="t-cell"><div class="tn" id="t-h">11</div><div class="tl">Hours</div></div>
           <div class="t-cell"><div class="tn" id="t-m">23</div><div class="tl">Minutes</div></div>
           <div class="t-cell"><div class="tn" id="t-s">45</div><div class="tl">Seconds</div></div>
@@ -1026,6 +1117,30 @@ footer a:hover{color:var(--gold)}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
   <div id="toastText">Star reserved.</div>
 </div>
+
+<!-- ============ COOKIE CONSENT ============
+     First-visit consent banner. Self-contained and future-proof: the JS exposes a
+     single setConsent() seam, so this can grow into Accept All / Reject
+     Non-essential / Preferences without changing this markup. Rendered as an
+     <aside> (complementary landmark) with real <button>s, so it is keyboard
+     navigable and announced by screen readers without trapping focus or blocking
+     the page. Hidden until the JS confirms no prior choice exists. -->
+<aside class="cc" id="cookieConsent" aria-label="Cookie consent" hidden>
+  <div class="cc-glow" aria-hidden="true"></div>
+  <div class="cc-body">
+    <div class="cc-text">
+      <h4 class="cc-title" id="ccTitle">
+        <svg class="cc-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+        Your Journey Through the Stars
+      </h4>
+      <p class="cc-desc">We use essential cookies to provide secure checkout, improve website performance, and enhance your experience. By continuing to browse Astralis Registry, you agree to our use of cookies.</p>
+    </div>
+    <div class="cc-actions">
+      <button class="cc-btn cc-learn" type="button" id="ccLearn">Learn More</button>
+      <button class="cc-btn cc-accept" type="button" id="ccAccept">Accept</button>
+    </div>
+  </div>
+</aside>
 
 <!-- ============ CERTIFICATE VIEWER (client-rendered + downloadable) ============ -->
 <div id="certView" hidden aria-label="Your certificate">
@@ -1222,6 +1337,7 @@ footer a:hover{color:var(--gold)}
       <div class="summary">
         <div><span id="sum-pkg">Premium Package</span><span id="sum-price">$79.00</span></div>
         <div><span>Star map upgrade</span><span style="color:#9ff0b9">Free</span></div>
+        <div><span>Shipping</span><span style="color:#9ff0b9">Free</span></div>
         <div><span>Certificate style</span><span id="sum-style">Midnight</span></div>
         <div class="tot"><span>Total</span><span id="sum-total">$79.00 AUD</span></div>
       </div>
@@ -1286,6 +1402,42 @@ footer a:hover{color:var(--gold)}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const state={selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',bag:[],emailVerified:false,delivery:null,prices:{standard:39,premium:79,ultimate:139}};
+
+/* ============================================================================
+   COOKIE CONSENT
+   Shows the first-visit banner and remembers the decision in localStorage so it
+   never reappears once chosen. Deliberately decoupled and future-proof: the
+   CONSENT_KEY + setConsent(state) seam is all a later Accept All / Reject
+   Non-essential / Preferences UI needs — store a richer object, reuse the flow.
+   It reveals only after `load` so it never competes with the loader or LCP.
+   ============================================================================ */
+(function(){
+  const el=$('#cookieConsent'); if(!el) return;
+  const CONSENT_KEY='astralis_cookie_consent_v1';
+
+  // Any stored value counts as "already decided". Guard storage access — it
+  // throws in private mode / when cookies are blocked; degrade to showing once.
+  let decided=false;
+  try{ decided=!!localStorage.getItem(CONSENT_KEY); }catch(_){}
+  if(decided) return;
+
+  // `state` is an object (not a boolean) so consent categories can be added
+  // later without changing the stored shape's contract.
+  function setConsent(state){
+    try{ localStorage.setItem(CONSENT_KEY, JSON.stringify({ ...state, at:Date.now() })); }catch(_){}
+  }
+  function reveal(){ el.hidden=false; requestAnimationFrame(()=>el.classList.add('on')); }
+  function dismiss(){ el.classList.remove('on'); setTimeout(()=>{ el.hidden=true; }, 700); } // wait out the fade
+
+  // Defer past first paint (after load) so the banner can't affect LCP.
+  if(document.readyState==='complete') setTimeout(reveal, 600);
+  else addEventListener('load', ()=>setTimeout(reveal, 600), { once:true });
+
+  $('#ccAccept').addEventListener('click', ()=>{ setConsent({ essential:true, accepted:true }); dismiss(); });
+  // "Learn More" opens the Privacy sub-page and intentionally does NOT record a
+  // choice — the banner returns next visit until the visitor accepts.
+  $('#ccLearn').addEventListener('click', ()=>{ if(typeof openSubpage==='function') openSubpage('privacy'); });
+})();
 
 /* ---------- nav scroll ---------- */
 const nav=$('#nav');
@@ -1598,7 +1750,7 @@ $$('.q').forEach(q=>{
 })();
 
 /* ---------- countdown ---------- */
-const end=new Date(2026,5,24,0,0,0).getTime();   /* anchored: 12am 14 Jun -> 12am 24 Jun 2026 (10-day window) */
+const end=new Date(2026,6,4,0,0,0).getTime();   /* offer extended 10 days -> ends 12am 4 Jul 2026 */
 setInterval(()=>{
   let d=Math.max(0,end-Date.now())/1000;
   $('#t-d').textContent=String(Math.floor(d/86400)).padStart(2,'0');

@@ -59,15 +59,41 @@ function certCard(c) {
   </td></tr>`;
 }
 
+// Standard ($39) is digital-only; Premium ($79) and Ultimate ($139) are printed
+// and posted (Ultimate is framed + gift-boxed + priority).
+const PHYSICAL_PKGS = new Set(['premium', 'ultimate']);
+
 /**
- * Internal "new order to ship" notification for the registry owner — a single
- * scannable summary with the buyer's name, phone, full delivery address and the
- * purchased items, so the order can be dispatched via AusPost. Sent to
- * ENV.ORDER_NOTIFY_EMAIL, separate from the customer's confirmation.
+ * Classify an order's fulfilment so the owner instantly knows whether anything
+ * has to be printed and shipped. Mixed carts resolve to the most involved action.
+ * @returns {{digitalOnly:boolean, needsShip:boolean, hasPriority:boolean, subject:string, banner:string, color:string, bg:string}}
+ */
+export function orderFulfilment(order) {
+  const items = order.items || [];
+  const hasPriority = items.some((it) => it.pkg === 'ultimate');
+  const needsShip = items.some((it) => PHYSICAL_PKGS.has(it.pkg));
+  if (!needsShip) return { digitalOnly: true, needsShip: false, hasPriority, subject: 'Digital only · no shipping', banner: 'DIGITAL ONLY — nothing to print or post', color: '#1f7a4d', bg: '#e7f6ee' };
+  if (hasPriority) return { digitalOnly: false, needsShip: true, hasPriority: true, subject: 'PRIORITY ship', banner: 'PRIORITY — print, frame & post (gift box)', color: '#6b21a8', bg: '#f3e9fb' };
+  return { digitalOnly: false, needsShip: true, hasPriority: false, subject: 'Print & ship', banner: 'PRINT & SHIP this order', color: '#9a6a00', bg: '#fbf2dc' };
+}
+
+function itemFulfilment(pkg) {
+  if (pkg === 'ultimate') return { label: 'Framed · gift box · priority', color: '#6b21a8', bg: '#f3e9fb' };
+  if (pkg === 'premium') return { label: 'Printed · post', color: '#9a6a00', bg: '#fbf2dc' };
+  return { label: 'Digital only', color: '#1f7a4d', bg: '#e7f6ee' };
+}
+
+/**
+ * Internal "new order" notification for the registry owner — a single scannable
+ * summary with the buyer's name, phone, full delivery address and the purchased
+ * items. A coloured banner + per-item tags make the fulfilment action obvious:
+ * digital-only orders need nothing posted; Premium/Ultimate must be printed and
+ * shipped. Sent to ENV.ORDER_NOTIFY_EMAIL, separate from the customer's email.
  * @param {object} order  fulfilled order snapshot (email, delivery, items, totals)
  */
 export function fulfillmentNotificationHtml(order) {
   const d = order.delivery || {};
+  const f = orderFulfilment(order);
   const when = new Date(order.paidAt || order.createdAt || Date.now()).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' });
   const addr = [d.address1, d.address2, [d.suburb, d.city].filter(Boolean).join(', '), [d.state, d.postcode].filter(Boolean).join(' '), d.country]
     .filter(Boolean)
@@ -81,8 +107,10 @@ export function fulfillmentNotificationHtml(order) {
   const items = order.items
     .map((it) => {
       const coords = [it.star?.ra, it.star?.dec].filter(Boolean).join('   ');
-      return `<li style="margin-bottom:10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#0b1020;">
+      const t = itemFulfilment(it.pkg);
+      return `<li style="margin-bottom:12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#0b1020;">
         <b>${esc(it.name)}</b> — ${esc(PKG_NAMES[it.pkg] || it.pkg)} &middot; ${esc(it.theme === 'ivory' ? 'Ivory' : 'Midnight')}${it.star?.id ? ` &middot; ${esc(it.star.id)}` : ''}${it.cons ? ` &middot; ${esc(it.cons)}` : ''}
+        <span style="display:inline-block;margin-left:4px;padding:1px 9px;border-radius:999px;font-size:11px;font-weight:bold;background:${t.bg};color:${t.color};">${esc(t.label)}</span>
         ${coords ? `<br><span style="color:#6E7799;font-size:12px;">${esc(coords)}</span>` : ''}
       </li>`;
     })
@@ -93,11 +121,14 @@ export function fulfillmentNotificationHtml(order) {
 <body style="margin:0;padding:24px;background:#f4f5fa;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e3e6f0;border-radius:14px;overflow:hidden;">
     <tr><td style="padding:20px 26px;background:#0b1020;">
-      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#D9B96C;">Astralis &middot; New order to ship</div>
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#D9B96C;">Astralis &middot; New order</div>
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:21px;color:#ffffff;margin-top:5px;">${esc(order.orderNo)} &middot; ${esc(formatMoney(order.totalCents, order.currency))}</div>
     </td></tr>
-    <tr><td style="padding:20px 26px 6px;">
-      <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#99A2C4;margin-bottom:6px;">Ship to</div>
+    <tr><td style="padding:13px 26px;background:${f.bg};">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;letter-spacing:.4px;color:${f.color};">${f.digitalOnly ? '&#10003; ' : '&#10148; '}${f.banner}</div>
+    </td></tr>
+    <tr><td style="padding:18px 26px 6px;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#99A2C4;margin-bottom:6px;">${f.digitalOnly ? 'Customer' : 'Ship to'}</div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0">
         ${row('Name', '<b>' + esc(d.name || '&mdash;') + '</b>')}
         ${row('Address', addr || '&mdash;')}

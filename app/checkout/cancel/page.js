@@ -1,3 +1,7 @@
+// Stripe Checkout cancel page — where Stripe returns a buyer who abandons
+// payment (the cancel_url passed in create-session). It reassures them no charge
+// was made and links back to the site. No order state changes here; the pending
+// order simply expires unfulfilled. `C` is the shared brand palette/fonts.
 const C = {
   gold: '#D9B96C',
   goldBright: '#F2DCA2',

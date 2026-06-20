@@ -1,3 +1,11 @@
+/**
+ * POST /api/verify-email/send-code
+ * Body: { email }
+ * Emails a 6-digit code so we can confirm the buyer controls the address used
+ * for delivery before they pay. Rate-limited per email (see ../store). The code
+ * is generated with a CSPRNG and only ever leaves the server inside the email —
+ * it is never logged or returned in the response.
+ */
 import { randomInt } from 'node:crypto';
 import { Resend } from 'resend';
 import { canSend, saveCode, normaliseEmail } from '../store';

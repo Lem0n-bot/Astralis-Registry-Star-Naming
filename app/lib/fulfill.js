@@ -16,7 +16,7 @@
 import { Resend } from 'resend';
 import { getOrder, markPaid, claimStar, markEmailSent, markCertificate } from './orders';
 import { generateCertificate } from './certificates';
-import { orderConfirmationHtml, fulfillmentNotificationHtml } from './order-email';
+import { orderConfirmationHtml, fulfillmentNotificationHtml, orderFulfilment } from './order-email';
 import {
   putOrder as putSnapshot,
   getOrder as getSnapshot,
@@ -185,7 +185,9 @@ async function sendOwnerNotification(snap) {
       from: ENV.RESEND_FROM,
       to: ENV.ORDER_NOTIFY_EMAIL,
       replyTo: snap.email,
-      subject: `New order to ship · ${snap.orderNo} · ${shipTo}`,
+      // subject leads with the fulfilment action so digital ($39) vs ship
+      // ($79) vs priority ($139) orders are obvious in the inbox.
+      subject: `${orderFulfilment(snap).subject} · ${snap.orderNo} · ${shipTo}`,
       html: fulfillmentNotificationHtml(snap),
     });
     if (r && r.error) throw new Error(r.error.message || 'resend_error');

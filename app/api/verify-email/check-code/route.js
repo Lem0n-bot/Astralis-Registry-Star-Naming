@@ -1,3 +1,11 @@
+/**
+ * POST /api/verify-email/check-code
+ * Body: { email, code }
+ * Verifies a code previously emailed by send-code. Consumes one of the allowed
+ * attempts and maps the store result to HTTP status codes. This is a UX gate
+ * only — it does not by itself authorise anything; the price and order are still
+ * validated server-side at checkout.
+ */
 import { checkCode, normaliseEmail } from '../store';
 
 export const runtime = 'nodejs';        // shares the in-memory store
