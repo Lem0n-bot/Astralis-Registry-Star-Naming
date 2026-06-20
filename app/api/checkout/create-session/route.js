@@ -39,6 +39,24 @@ export async function POST(req) {
   const order = createOrder(v.order);
   const origin = originOf(req);
 
+  // Attach the shipping name / phone / address to the PaymentIntent so every
+  // order is visible (and exportable) in the Stripe Dashboard for fulfilment.
+  const dl = order.delivery || {};
+  const shipping = dl.address1
+    ? {
+        name: dl.name || order.email,
+        ...(dl.phone ? { phone: dl.phone } : {}),
+        address: {
+          line1: dl.address1,
+          ...(dl.address2 ? { line2: dl.address2 } : {}),
+          city: dl.suburb || dl.city || '',
+          state: dl.state || '',
+          postal_code: dl.postcode || '',
+          country: 'AU',
+        },
+      }
+    : null;
+
   let session;
   try {
     const stripe = getStripe();
@@ -61,7 +79,10 @@ export async function POST(req) {
         };
       }),
       metadata: { orderId: order.id, orderNo: order.orderNo },
-      payment_intent_data: { metadata: { orderId: order.id, orderNo: order.orderNo } },
+      payment_intent_data: {
+        metadata: { orderId: order.id, orderNo: order.orderNo },
+        ...(shipping ? { shipping } : {}),
+      },
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout/cancel`,
     });

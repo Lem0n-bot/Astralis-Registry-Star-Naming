@@ -6,6 +6,9 @@ export const ENV = {
   RESEND_API_KEY: process.env.RESEND_API_KEY || '',
   // Verified sender (matches the existing verification email). Override per-env.
   RESEND_FROM: process.env.RESEND_FROM || 'Astralis Registry <noreply@astralisregistry.com>',
+  // Internal recipient for "new order" fulfilment notifications (name, phone,
+  // address + items) so the owner can ship via AusPost. Override per-env.
+  ORDER_NOTIFY_EMAIL: process.env.ORDER_NOTIFY_EMAIL || 'anhtuanasd35@gmail.com',
   ORDER_TOKEN_SECRET: process.env.ORDER_TOKEN_SECRET || '',
   SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || '',
   KV_URL: process.env.KV_REST_API_URL || '',

@@ -16,7 +16,7 @@
 import { Resend } from 'resend';
 import { getOrder, markPaid, claimStar, markEmailSent, markCertificate } from './orders';
 import { generateCertificate } from './certificates';
-import { orderConfirmationHtml } from './order-email';
+import { orderConfirmationHtml, fulfillmentNotificationHtml } from './order-email';
 import {
   putOrder as putSnapshot,
   getOrder as getSnapshot,
@@ -99,6 +99,8 @@ export async function fulfillOrder(orderId, payment) {
 
     // 5: confirmation email (retry + logging; never undoes a paid fulfilment)
     snap.emailStatus = await sendConfirmation(snap, certs);
+    // 5b: internal "new order to ship" notification to the owner (best-effort).
+    await sendOwnerNotification(snap);
     await putSnapshot(snap);
     if (snap.emailStatus === 'sent' && getOrder(orderId)) markEmailSent(orderId);
 
@@ -165,5 +167,31 @@ async function sendConfirmation(snap, certs) {
     snap.deliveryLog.push({ ts: Date.now(), stage: 'email', status: 'failed', error: String(err?.message || err) });
     console.error('[fulfill] confirmation email failed after retries', snap.orderNo, err?.message);
     return 'failed';
+  }
+}
+
+/** Internal notification so the owner can ship the order via AusPost. Best-effort:
+ *  a failure here never affects the (already secured) payment, certificates or
+ *  customer email. */
+async function sendOwnerNotification(snap) {
+  if (!isResendConfigured() || !ENV.ORDER_NOTIFY_EMAIL) {
+    snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', status: 'skipped' });
+    return;
+  }
+  try {
+    const resend = new Resend(ENV.RESEND_API_KEY);
+    const shipTo = (snap.delivery && snap.delivery.name) || snap.email;
+    const r = await resend.emails.send({
+      from: ENV.RESEND_FROM,
+      to: ENV.ORDER_NOTIFY_EMAIL,
+      replyTo: snap.email,
+      subject: `New order to ship · ${snap.orderNo} · ${shipTo}`,
+      html: fulfillmentNotificationHtml(snap),
+    });
+    if (r && r.error) throw new Error(r.error.message || 'resend_error');
+    snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', status: 'sent', providerId: r?.data?.id || null });
+  } catch (err) {
+    snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', status: 'failed', error: String(err?.message || err) });
+    console.error('[fulfill] owner notification failed', snap.orderNo, err?.message);
   }
 }

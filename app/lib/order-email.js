@@ -60,6 +60,61 @@ function certCard(c) {
 }
 
 /**
+ * Internal "new order to ship" notification for the registry owner — a single
+ * scannable summary with the buyer's name, phone, full delivery address and the
+ * purchased items, so the order can be dispatched via AusPost. Sent to
+ * ENV.ORDER_NOTIFY_EMAIL, separate from the customer's confirmation.
+ * @param {object} order  fulfilled order snapshot (email, delivery, items, totals)
+ */
+export function fulfillmentNotificationHtml(order) {
+  const d = order.delivery || {};
+  const when = new Date(order.paidAt || order.createdAt || Date.now()).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' });
+  const addr = [d.address1, d.address2, [d.suburb, d.city].filter(Boolean).join(', '), [d.state, d.postcode].filter(Boolean).join(' '), d.country]
+    .filter(Boolean)
+    .map(esc)
+    .join('<br>');
+  const row = (label, value) => `
+    <tr>
+      <td style="padding:7px 16px 7px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6E7799;white-space:nowrap;vertical-align:top;">${esc(label)}</td>
+      <td style="padding:7px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#0b1020;">${value}</td>
+    </tr>`;
+  const items = order.items
+    .map((it) => {
+      const coords = [it.star?.ra, it.star?.dec].filter(Boolean).join('   ');
+      return `<li style="margin-bottom:10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#0b1020;">
+        <b>${esc(it.name)}</b> — ${esc(PKG_NAMES[it.pkg] || it.pkg)} &middot; ${esc(it.theme === 'ivory' ? 'Ivory' : 'Midnight')}${it.star?.id ? ` &middot; ${esc(it.star.id)}` : ''}${it.cons ? ` &middot; ${esc(it.cons)}` : ''}
+        ${coords ? `<br><span style="color:#6E7799;font-size:12px;">${esc(coords)}</span>` : ''}
+      </li>`;
+    })
+    .join('');
+
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:24px;background:#f4f5fa;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e3e6f0;border-radius:14px;overflow:hidden;">
+    <tr><td style="padding:20px 26px;background:#0b1020;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#D9B96C;">Astralis &middot; New order to ship</div>
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:21px;color:#ffffff;margin-top:5px;">${esc(order.orderNo)} &middot; ${esc(formatMoney(order.totalCents, order.currency))}</div>
+    </td></tr>
+    <tr><td style="padding:20px 26px 6px;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#99A2C4;margin-bottom:6px;">Ship to</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        ${row('Name', '<b>' + esc(d.name || '&mdash;') + '</b>')}
+        ${row('Address', addr || '&mdash;')}
+        ${row('Phone', d.phone ? `<a href="tel:${esc(d.phone)}" style="color:#0b1020;text-decoration:none;">${esc(d.phone)}</a>` : '&mdash;')}
+        ${row('Email', `<a href="mailto:${esc(order.email)}" style="color:#0b1020;">${esc(order.email)}</a>`)}
+        ${row('Placed', esc(when))}
+      </table>
+    </td></tr>
+    <tr><td style="padding:14px 26px 24px;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#99A2C4;margin-bottom:8px;">Items (${order.items.length})</div>
+      <ul style="margin:0;padding-left:18px;">${items}</ul>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+/**
  * @param {object} order
  * @param {{certificates?:Array<{certId,name,pngUrl,pdfUrl}>, portalUrl?:string}} [opts]
  */

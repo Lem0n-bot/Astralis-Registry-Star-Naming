@@ -22,7 +22,7 @@ const STR = (v, max = 200) => String(v == null ? '' : v).trim().slice(0, max);
 /**
  * @typedef {{id:string,ra:string,dec:string,cons:string,mag:string,cls:string,sec:string}} Star
  * @typedef {{pkg:string,priceCents:number,name:string,recip:string,occ:string,msg:string,theme:'midnight'|'ivory',cons:string,star:Star}} OrderItem
- * @typedef {{address1:string,address2:string,suburb:string,city:string,state:string,postcode:string,phone:string,email:string,country:'Australia'}} Delivery
+ * @typedef {{name:string,address1:string,address2:string,suburb:string,city:string,state:string,postcode:string,phone:string,email:string,country:'Australia'}} Delivery
  * @typedef {{email:string,items:OrderItem[],delivery:Delivery,totalCents:number,currency:string}} ValidatedOrder
  */
 
@@ -43,6 +43,7 @@ export function validateOrderInput(body) {
 
   const d = body.delivery && typeof body.delivery === 'object' ? body.delivery : {};
   const delivery = {
+    name: STR(d.name, 80),
     address1: STR(d.address1, 120),
     address2: STR(d.address2, 120),
     suburb: STR(d.suburb, 80),
@@ -53,6 +54,7 @@ export function validateOrderInput(body) {
     email,
     country: 'Australia',
   };
+  if (!delivery.name) return { ok: false, error: 'missing_name' };
   if (!delivery.address1) return { ok: false, error: 'missing_address' };
   if (!delivery.suburb || !delivery.city) return { ok: false, error: 'missing_locality' };
   if (!AU_STATES.includes(delivery.state)) return { ok: false, error: 'invalid_state' };
