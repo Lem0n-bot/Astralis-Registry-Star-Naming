@@ -193,6 +193,7 @@ All variables are documented in [`.env.example`](.env.example). Key ones:
 | `ORDER_NOTIFY_EMAIL` | Resend | Where internal "new order" notifications go. |
 | `ORDER_TOKEN_SECRET` | - | HMAC secret for no-login links. **Set a long random value in production.** |
 | `NEXT_PUBLIC_SITE_URL` | - | Absolute origin for success/cancel + email links. |
+| `NEXT_PUBLIC_GA4_ID` | Google Analytics | Optional GA4 Measurement ID (`G-XXXXXXXXXX`). Loads only after cookie consent; unset = analytics silently off. |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Vercel KV | Durable storage. Recommended in production. |
 | `PUPPETEER_EXECUTABLE_PATH` | - | Local-dev path to system Chrome; leave unset on Vercel. |
 
@@ -226,8 +227,12 @@ changes.
   constant-time HMAC tokens; no accounts or passwords.
 - **Email verification** - CSPRNG codes, per-email rate limiting, never logged.
 - **Transport hardening** - HSTS (2-year, preload), TLS 1.2/1.3, HTTP→HTTPS and
-  www→apex redirects at the edge and in middleware; `X-Powered-By` disabled; no
-  third-party scripts beyond Three.js + fonts on the marketing page.
+  www→apex redirects at the edge and in middleware; `X-Powered-By` disabled.
+- **Consent-gated analytics** - the only third-party script beyond Three.js +
+  fonts is Google Analytics (GA4), and it loads **only after the visitor accepts**
+  the cookie banner. Decline (or no `NEXT_PUBLIC_GA4_ID`) means no `gtag.js` and no
+  analytics cookies. The `purchase` conversion value is taken from the
+  server-verified Stripe amount, never the client, and fires at most once per order.
 
 ## Known Limitations
 

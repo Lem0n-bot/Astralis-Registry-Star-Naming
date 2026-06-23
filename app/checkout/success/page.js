@@ -14,6 +14,71 @@ const C = {
 const PKG = { standard: 'Standard', premium: 'Premium', ultimate: 'Ultimate Gift' };
 const money = (cents, cur) => (cents == null ? '' : `$${(cents / 100).toFixed(2)} ${String(cur || 'AUD').toUpperCase()}`);
 
+// ── Analytics (GA4 purchase) ─────────────────────────────────────────────────
+// This success page is its own React route — it does NOT include the marketing
+// site's loader — so it bootstraps gtag.js itself, but ONLY with the same consent
+// the visitor gave on the marketing site (shared localStorage, same origin) and
+// ONLY when a Measurement ID is configured. The purchase value comes from the
+// server-verified Stripe amount returned by /api/checkout/order (data.amountTotal),
+// never a client-supplied number. NEXT_PUBLIC_GA4_ID is inlined at build time.
+const GA_ID = process.env.NEXT_PUBLIC_GA4_ID;
+const CONSENT_KEY = 'astralis_cookie_consent_v2'; // must match public/index.html
+
+function analyticsAllowed() {
+  try {
+    return !!(JSON.parse(localStorage.getItem(CONSENT_KEY) || 'null') || {}).analytics;
+  } catch {
+    return false;
+  }
+}
+
+// Bootstrap gtag.js once per page load. Returns the gtag fn, or null if no ID.
+function ensureGtag() {
+  if (!GA_ID || typeof window === 'undefined') return null;
+  if (typeof window.gtag === 'function') return window.gtag;
+  window.dataLayer = window.dataLayer || [];
+  const gtag = function () { window.dataLayer.push(arguments); };
+  window.gtag = gtag;
+  gtag('js', new Date());
+  gtag('config', GA_ID); // sends this page's page_view
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA_ID);
+  document.head.appendChild(s);
+  return gtag;
+}
+
+// Fire the GA4 purchase conversion exactly once per order. The localStorage guard
+// (keyed by the order/session id) survives refreshes and tab reopens, so a
+// refreshed success page can never double-count the conversion.
+function reportPurchase(data) {
+  if (!data || !data.paid || !GA_ID || !analyticsAllowed()) return;
+  const sid = new URLSearchParams(window.location.search).get('session_id') || '';
+  const key = 'astralis_ga4_purchase_' + (data.orderId || sid);
+  try {
+    if (localStorage.getItem(key)) return; // already reported this order
+  } catch {
+    return; // storage unavailable → don't risk double-counting
+  }
+  const gtag = ensureGtag();
+  if (!gtag) return;
+  gtag('event', 'purchase', {
+    transaction_id: data.orderNo || data.orderId || sid || undefined,
+    value: data.amountTotal != null ? data.amountTotal / 100 : undefined, // cents → dollars, server-sourced
+    currency: String(data.currency || 'aud').toUpperCase(),
+    items: (data.items || []).map((it, i) => ({
+      item_id: it.starId || `${it.pkg || 'item'}-${i}`,
+      item_name: it.name,
+      item_category: it.pkg,
+    })),
+  });
+  try {
+    localStorage.setItem(key, String(Date.now()));
+  } catch {
+    /* best-effort: event already fired */
+  }
+}
+
 export default function CheckoutSuccess() {
   const [state, setState] = useState({ loading: true, error: null, data: null });
   const skyRef = useRef(null);
@@ -84,6 +149,12 @@ export default function CheckoutSuccess() {
       cancelled = true;
     };
   }, []);
+
+  // Report the GA4 purchase once the server confirms payment. Self-guarding:
+  // no-op without consent / Measurement ID, and fires at most once per order.
+  useEffect(() => {
+    if (state.data) reportPurchase(state.data);
+  }, [state.data]);
 
   const { loading, error, data } = state;
 

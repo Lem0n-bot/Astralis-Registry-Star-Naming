@@ -63,6 +63,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Publishes the GA4 Measurement ID from server env as window.__GA4_ID__ (empty
+     when unset). Deferred so it never blocks first paint; analytics itself loads
+     only after cookie consent. -->
+<script src="/ga-config.js" defer></script>
 <style>
 :root{
   --ink:#05070F;
@@ -563,8 +567,10 @@ button.chip:hover{border-color:var(--gold);color:var(--star)}
 .cc-btn:hover{transform:translateY(-2px)}
 .cc-accept{background:linear-gradient(135deg,var(--gold-bright),var(--gold));color:#1a1405;font-weight:600;box-shadow:0 6px 20px rgba(217,185,108,.28)}
 .cc-accept:hover{box-shadow:0 11px 30px rgba(217,185,108,.46)}
-.cc-learn{background:rgba(255,255,255,.04);border:1px solid var(--glass-brd);color:var(--star)}
-.cc-learn:hover{border-color:var(--gold);color:var(--gold-bright)}
+.cc-decline{background:rgba(255,255,255,.04);border:1px solid var(--glass-brd);color:var(--star)}
+.cc-decline:hover{border-color:var(--gold);color:var(--gold-bright)}
+.cc-link{color:var(--gold-bright);text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.cc-link:hover{color:var(--gold)}
 @keyframes ccTwinkle{0%,100%{opacity:1}50%{opacity:.5}}
 @media(max-width:560px){
   .cc{bottom:.7rem}
@@ -1125,7 +1131,7 @@ footer a:hover{color:var(--gold)}
      <aside> (complementary landmark) with real <button>s, so it is keyboard
      navigable and announced by screen readers without trapping focus or blocking
      the page. Hidden until the JS confirms no prior choice exists. -->
-<aside class="cc" id="cookieConsent" aria-label="Cookie consent" hidden>
+<aside class="cc" id="cookieConsent" role="dialog" aria-modal="false" aria-labelledby="ccTitle" aria-describedby="ccDesc" aria-live="polite" hidden>
   <div class="cc-glow" aria-hidden="true"></div>
   <div class="cc-body">
     <div class="cc-text">
@@ -1133,10 +1139,10 @@ footer a:hover{color:var(--gold)}
         <svg class="cc-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
         Your Journey Through the Stars
       </h4>
-      <p class="cc-desc">We use essential cookies to provide secure checkout, improve website performance, and enhance your experience. By continuing to browse Astralis Registry, you agree to our use of cookies.</p>
+      <p class="cc-desc" id="ccDesc">We use cookies — including <b>Google Analytics</b> — to understand how visitors explore Astralis and to improve your experience. Analytics loads only if you accept; essential cookies keep checkout secure. Read our <a href="#" data-page="privacy" class="cc-link">Privacy Policy</a>.</p>
     </div>
     <div class="cc-actions">
-      <button class="cc-btn cc-learn" type="button" id="ccLearn">Learn More</button>
+      <button class="cc-btn cc-decline" type="button" id="ccDecline">Decline</button>
       <button class="cc-btn cc-accept" type="button" id="ccAccept">Accept</button>
     </div>
   </div>
@@ -1404,28 +1410,66 @@ const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const state={selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',certTheme:'midnight',bag:[],emailVerified:false,delivery:null,prices:{standard:39,premium:79,ultimate:139}};
 
 /* ============================================================================
+   ANALYTICS — consent-gated tracker layer
+   A minimal registry of trackers. GA4 (gtag.js) is the only one today; a second
+   or third (Meta Pixel, Google Ads) is added by pushing its loader into TRACKERS
+   — nothing else changes. Nothing here touches the network or sets a cookie until
+   enable() is called, and enable() runs ONLY after explicit consent. The GA4
+   Measurement ID is injected at runtime by /ga-config.js (window.__GA4_ID__), so
+   it is env-driven per environment and never hardcoded; if it is absent, GA4
+   silently does not load. gtag.js loads async and never blocks paint.
+   ============================================================================ */
+const Analytics=(function(){
+  let on=false;
+  function loadGA4(){
+    const id=(window.__GA4_ID__||'').trim();
+    if(!id) return;                                  /* env unset → stay absent, no error */
+    window.dataLayer=window.dataLayer||[];
+    window.gtag=function(){ dataLayer.push(arguments); };
+    gtag('js', new Date());
+    gtag('config', id);                              /* sends the initial page_view */
+    const s=document.createElement('script');
+    s.async=true; s.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(id);
+    document.head.appendChild(s);
+  }
+  const TRACKERS=[loadGA4];                           /* push Meta Pixel / Google Ads loaders here later */
+  return {
+    enable(){ if(on) return; on=true; TRACKERS.forEach(fn=>{ try{ fn(); }catch(_){ } }); },
+    /* No-op until consent has enabled a tracker, so nothing ever fires pre-consent. */
+    track(name, params){ if(on && typeof window.gtag==='function') gtag('event', name, params||{}); }
+  };
+})();
+
+/* ============================================================================
    COOKIE CONSENT
-   Shows the first-visit banner and remembers the decision in localStorage so it
-   never reappears once chosen. Deliberately decoupled and future-proof: the
-   CONSENT_KEY + setConsent(state) seam is all a later Accept All / Reject
-   Non-essential / Preferences UI needs — store a richer object, reuse the flow.
-   It reveals only after `load` so it never competes with the loader or LCP.
+   First-visit banner that gates Analytics. The decision persists in localStorage
+   so the banner never reappears once chosen. GA4 loads ONLY after Accept; Decline
+   loads nothing and sets no analytics cookies. A returning visitor who accepted
+   has Analytics enabled immediately (no banner). The CONSENT_KEY + setConsent()
+   seam stays future-proof — richer consent categories can be stored later without
+   changing the contract. Revealed only after `load` so it never competes with the
+   loader or LCP. To withdraw consent: clear site data, and the banner returns.
    ============================================================================ */
 (function(){
-  const el=$('#cookieConsent'); if(!el) return;
-  const CONSENT_KEY='astralis_cookie_consent_v1';
+  const CONSENT_KEY='astralis_cookie_consent_v2';     /* v2: consent scope now covers analytics */
+  const el=$('#cookieConsent');
 
-  // Any stored value counts as "already decided". Guard storage access — it
-  // throws in private mode / when cookies are blocked; degrade to showing once.
-  let decided=false;
-  try{ decided=!!localStorage.getItem(CONSENT_KEY); }catch(_){}
-  if(decided) return;
+  // Guard storage access — it throws in private mode / when cookies are blocked.
+  function read(){ try{ return JSON.parse(localStorage.getItem(CONSENT_KEY)||'null'); }catch(_){ return null; } }
+  function setConsent(s){ try{ localStorage.setItem(CONSENT_KEY, JSON.stringify({ ...s, at:Date.now() })); }catch(_){ } }
 
-  // `state` is an object (not a boolean) so consent categories can be added
-  // later without changing the stored shape's contract.
-  function setConsent(state){
-    try{ localStorage.setItem(CONSENT_KEY, JSON.stringify({ ...state, at:Date.now() })); }catch(_){}
+  const saved=read();
+
+  // Honour a prior Accept on every load. Defer to DOMContentLoaded so the
+  // deferred /ga-config.js has published window.__GA4_ID__ before GA4 loads.
+  if(saved && saved.analytics){
+    if(document.readyState==='loading') addEventListener('DOMContentLoaded', ()=>Analytics.enable(), { once:true });
+    else Analytics.enable();
   }
+  // Any prior choice (accept OR decline) → never show the banner again.
+  if(saved && (saved.accepted || saved.declined)){ if(el) el.remove(); return; }
+  if(!el) return;
+
   function reveal(){ el.hidden=false; requestAnimationFrame(()=>el.classList.add('on')); }
   function dismiss(){ el.classList.remove('on'); setTimeout(()=>{ el.hidden=true; }, 700); } // wait out the fade
 
@@ -1433,10 +1477,10 @@ const state={selectedStar:null,reservedStar:null,reserveEnds:0,pkg:'premium',cer
   if(document.readyState==='complete') setTimeout(reveal, 600);
   else addEventListener('load', ()=>setTimeout(reveal, 600), { once:true });
 
-  $('#ccAccept').addEventListener('click', ()=>{ setConsent({ essential:true, accepted:true }); dismiss(); });
-  // "Learn More" opens the Privacy sub-page and intentionally does NOT record a
-  // choice — the banner returns next visit until the visitor accepts.
-  $('#ccLearn').addEventListener('click', ()=>{ if(typeof openSubpage==='function') openSubpage('privacy'); });
+  $('#ccAccept').addEventListener('click', ()=>{ setConsent({ essential:true, accepted:true, analytics:true }); Analytics.enable(); dismiss(); });
+  $('#ccDecline').addEventListener('click', ()=>{ setConsent({ essential:true, declined:true, analytics:false }); dismiss(); });
+  // The inline "Privacy Policy" link (data-page="privacy") is wired by the sub-page
+  // router and intentionally records no choice — the banner waits until you decide.
 })();
 
 /* ---------- nav scroll ---------- */
@@ -2868,6 +2912,7 @@ $('#detailClose').addEventListener('click',()=>closeDetail());
 /* ---------- claim ---------- */
 $('#claimBtn').addEventListener('click',()=>{
   const E=EXP,s=state.selectedStar;if(!s)return;
+  Analytics.track('claim_star',{ star_id:s.info.id, constellation:CONSTELLATIONS[s.info.ci][0] });
   /* particle burst */
   const M=240,p=new Float32Array(M*3),vels=[];
   for(let i=0;i<M;i++){p[i*3]=s.pos.x;p[i*3+1]=s.pos.y;p[i*3+2]=s.pos.z;
@@ -3917,6 +3962,7 @@ $('#d-postcode').addEventListener('input',e=>{e.target.value=e.target.value.repl
 ['d-addr1','d-suburb','d-city','d-state','d-postcode','d-phone'].forEach(id=>$('#'+id).addEventListener('input',()=>$('#'+id).closest('.field').classList.remove('invalid')));
 function openCheckout(){
   $('#checkout').classList.add('on');document.body.style.overflow='hidden';
+  Analytics.track('begin_checkout',{ currency:'AUD', value: state.bag.length?bagTotal():(state.prices[state.pkg]||0), items_count: state.bag.length });
   const n=state.bag.length;
   if(n){
     /* cart already holds chosen, personalised stars — skip the package step */
@@ -4140,7 +4186,7 @@ privacy:{t:'Privacy Policy',l:'Your trust matters as much as your star. Here is 
 <h2>2. Order processing</h2><p>We use your information to process orders, produce your personalised products, maintain your entry in the Astralis Registry, arrange delivery and provide order updates.</p>
 <h2>3. Payment processing</h2><p>Payments are handled by secure third-party payment providers. Astralis does not store your full card details on our systems.</p>
 <h2>4. Customer support</h2><p>When you contact our support team, we keep a record of the communication so we can resolve your enquiry and improve our service.</p>
-<h2>5. Website analytics</h2><p>We use analytics tools to understand how visitors use our website, such as pages viewed and features used, so we can improve the experience. Analytics data is aggregated wherever possible.</p>
+<h2>5. Website analytics &amp; cookies</h2><p>We use <b>Google Analytics (GA4)</b> to understand how visitors use our website — such as pages viewed and features used — so we can improve the experience. Analytics data is aggregated wherever possible.</p><p>Google Analytics sets cookies <b>only after you accept</b> via our cookie banner. If you decline, no analytics cookies are set and GA4 is never loaded. You can <b>withdraw consent at any time</b> by clearing this site's cookies and site data in your browser; the consent banner will then reappear on your next visit so you can choose again. Essential cookies needed for secure checkout are always active and set no analytics data.</p>
 <h2>6. Marketing emails</h2><p>With your consent, we may send occasional emails about new products and offers. Every marketing email includes a one-click unsubscribe link, and you can opt out at any time.</p>
 <h2>7. Data security</h2><p>We protect your information with industry-standard measures, including SSL encryption in transit, access controls and secure hosting. No method of storage is completely infallible, but we treat your data with the same care we put into our certificates.</p>
 <h2>8. Third-party service providers</h2><p>We share information only with trusted providers who help us operate, such as payment processors, print partners, delivery carriers and email services, and only to the extent needed to fulfil your order.</p>
