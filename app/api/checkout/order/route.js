@@ -10,6 +10,7 @@ import { getStripe } from '../../../lib/stripe';
 import { getOrder } from '../../../lib/orders';
 import { fulfillOrder } from '../../../lib/fulfill';
 import { getOrder as getSnapshot } from '../../../lib/store.js';
+import { unpackOrder } from '../../../lib/order-codec';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,16 +31,24 @@ export async function GET(req) {
   const orderId = session.metadata?.orderId;
   const paid = session.payment_status === 'paid';
 
+  // Order as Stripe stored it — lets this instance fulfil even if it never saw
+  // the order and KV is not configured. See lib/order-codec.js.
+  const recovered = unpackOrder(session.metadata);
+
   if (paid && orderId) {
-    await fulfillOrder(orderId, {
-      sessionId: session.id,
-      paymentIntent: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
-      amountTotal: session.amount_total,
-    });
+    await fulfillOrder(
+      orderId,
+      {
+        sessionId: session.id,
+        paymentIntent: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
+        amountTotal: session.amount_total,
+      },
+      recovered
+    );
   }
 
   const snap = orderId ? await getSnapshot(orderId) : null;
-  const order = snap || (orderId ? getOrder(orderId) : null);
+  const order = snap || (orderId ? getOrder(orderId) : null) || recovered;
   const token = snap?.token || null;
 
   const certificates =

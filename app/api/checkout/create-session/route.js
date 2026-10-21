@@ -9,6 +9,8 @@ import { getStripe } from '../../../lib/stripe';
 import { validateOrderInput, PACKAGES, CURRENCY } from '../../../lib/catalog';
 import { createOrder, attachSession } from '../../../lib/orders';
 import { putOrder as putSnapshot } from '../../../lib/store.js';
+import { packOrder } from '../../../lib/order-codec';
+import { isKvConfigured, isResendConfigured } from '../../../lib/env.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,8 +38,24 @@ export async function POST(req) {
     return Response.json({ error: 'stripe_not_configured' }, { status: 500 });
   }
 
+  // Never take money we cannot acknowledge: without Resend there is no receipt
+  // and no certificate delivery, so refuse the sale instead of charging silently.
+  if (!isResendConfigured()) {
+    console.error('[create-session] refusing checkout: RESEND_API_KEY is not set');
+    return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
+  }
+
   const order = createOrder(v.order);
   const origin = originOf(req);
+
+  // The order travels with the Stripe session, so whichever instance handles the
+  // webhook can fulfil it even with no shared storage. If it will not fit, KV
+  // must be configured — otherwise the payment would be unrecoverable.
+  const packed = packOrder(order);
+  if (!packed && !isKvConfigured()) {
+    console.error('[create-session] refusing checkout: order too large to recover and KV is not configured', order.orderNo);
+    return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
+  }
 
   // Attach the shipping name / phone / address to the PaymentIntent so every
   // order is visible (and exportable) in the Stripe Dashboard for fulfilment.
@@ -78,7 +96,7 @@ export async function POST(req) {
           },
         };
       }),
-      metadata: { orderId: order.id, orderNo: order.orderNo },
+      metadata: { orderId: order.id, orderNo: order.orderNo, ...(packed || {}) },
       payment_intent_data: {
         metadata: { orderId: order.id, orderNo: order.orderNo },
         ...(shipping ? { shipping } : {}),

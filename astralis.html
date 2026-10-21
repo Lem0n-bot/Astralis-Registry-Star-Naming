@@ -4022,6 +4022,7 @@ const PAY_ERRORS={
   missing_phone:'Please add a phone number.',
   invalid_package:'One of your items is no longer available.',
   stripe_not_configured:'Payments are not available right now. Please try again later.',
+  fulfilment_not_configured:'Orders are paused for maintenance so we don’t take a payment we can’t deliver. Please email help.astralis@gmail.com and we’ll sort it out.',
   stripe_error:'We couldn’t start checkout. Please try again.'
 };
 $('#co-pay').addEventListener('click',async()=>{
@@ -4140,7 +4141,7 @@ faq:{t:'Frequently Asked Questions',l:'Everything you might like to know before,
 <h2>What occasions are suitable for naming a star?</h2><p>Birthdays, anniversaries, weddings, Valentine's Day, Mother's Day, Father's Day, the arrival of a new baby, graduations, and memorial tributes. Truly, any moment you want to make permanent.</p>
 <h2>What if I entered incorrect information?</h2><p>Contact us as soon as possible at <b>help.astralis@gmail.com</b>. If production of your certificate has not yet begun, we'll happily correct any details free of charge. Once a personalised item has entered production, changes are no longer possible, so please double-check spelling at checkout.</p>
 <h2>What is included in digital and physical packages?</h2><p><b>Standard (digital)</b> includes the personalised certificate and star map as high-resolution PDFs, delivered instantly. <b>Premium</b> adds a museum-quality printed certificate and luxury presentation folder. <b>Ultimate Gift</b> includes everything in Premium plus a framed certificate, luxury gift box and priority processing.</p>
-<h2>How can I contact support?</h2><p>Email us at <b>help.astralis@gmail.com</b> or call <b>+61 450 254 684</b>. Our support team typically responds within 1 to 2 business days.</p>
+<h2>How can I contact support?</h2><p>Email us at <b>help.astralis@gmail.com</b>. Our support team typically responds within 1 to 2 business days.</p>
 <p class="meta">Still curious? Visit our Contact page and we'll be happy to help.</p>`},
 about:{t:'About Astralis',l:'A luxury celestial gifting house, born from the simple act of looking up.',b:`
 <p>Astralis began with a belief: the most meaningful gifts aren't things, they're moments made permanent. We are a premium celestial gifting company that allows you to symbolically dedicate a star to someone special, captured in a beautifully personalised certificate and keepsake experience.</p>
@@ -4160,7 +4161,6 @@ about:{t:'About Astralis',l:'A luxury celestial gifting house, born from the sim
 contact:{t:'Contact Us',l:'Questions about an order, a star, or a surprise in progress? We would love to help.',b:`
 <div class="contact-cards">
 <a href="mailto:help.astralis@gmail.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span><span class="k">Email</span><br><span class="v">help.astralis@gmail.com</span></span></a>
-<a href="tel:+61450254684"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h4l2 5-3 2c1 2.5 3 4.5 5.5 5.5l2-3 5 2v4a2 2 0 0 1-2 2C10 21 3 14 3 6a2 2 0 0 1 2-2z"/></svg><span><span class="k">Phone</span><br><span class="v">+61 450 254 684</span></span></a>
 </div>
 <h2>Send us a message</h2>
 <div class="field"><label for="cf-name">Full name</label><input id="cf-name" type="text" autocomplete="name"></div>
