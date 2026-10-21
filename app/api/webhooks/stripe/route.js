@@ -15,6 +15,12 @@ import { unpackOrder } from '../../../lib/order-codec';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Fulfilment renders certificates with headless Chromium, which on a cold
+// serverless instance can take far longer than the platform default. Without
+// this the function is killed mid-render: no certificate, no email, and a
+// timeout Stripe reports as a failed delivery. Matches checkout/order, which
+// runs the same work.
+export const maxDuration = 60;
 
 export async function POST(req) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
