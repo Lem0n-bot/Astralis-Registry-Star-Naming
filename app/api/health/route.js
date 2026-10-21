@@ -39,8 +39,10 @@ export async function GET() {
     kv: isKvConfigured(),
   };
 
-  // Everything an order needs to be taken, fulfilled and acknowledged.
-  const required = ['stripeSecret', 'stripeWebhookSecret', 'resend', 'orderTokenSecret', 'siteUrl'];
+  // Everything an order needs to be taken, fulfilled and acknowledged. siteUrl,
+  // resendFrom and ownerNotifyEmail are deliberately NOT required — each has a
+  // working code default, so demanding them would report a healthy site as down.
+  const required = ['stripeSecret', 'stripeWebhookSecret', 'resend', 'orderTokenSecret'];
   const missing = required.filter((k) => !checks[k]);
 
   return Response.json(
