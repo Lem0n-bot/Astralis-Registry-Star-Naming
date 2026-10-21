@@ -77,6 +77,33 @@ export function orderFulfilment(order) {
   return { digitalOnly: false, needsShip: true, hasPriority: false, subject: 'Print & ship', banner: 'PRINT & SHIP this order', color: '#9a6a00', bg: '#fbf2dc' };
 }
 
+/**
+ * What the buyer should expect next, worded to match the promises already made
+ * on the site (FAQ "How quickly will the gift arrive?" and the Shipping page):
+ * digital within minutes, printed dispatched within 1–2 business days with
+ * tracked Australian shipping, Ultimate prioritised. Keep these in sync — this
+ * is a commitment to a paying customer, not marketing copy.
+ */
+export function deliveryEstimate(order) {
+  const f = orderFulfilment(order);
+  if (f.digitalOnly) {
+    return {
+      heading: 'Delivered instantly',
+      body: 'Your certificate is attached to this email as a high-resolution PDF — there is nothing to wait for. Print it at home, or keep the download link handy.',
+    };
+  }
+  if (f.hasPriority) {
+    return {
+      heading: 'Dispatch: 1–2 business days (priority)',
+      body: 'Your digital certificate is attached and ready now. Your framed keepsake and gift box are prioritised in production and dispatched within 1–2 business days, with tracked shipping across Australia. We will email your tracking number as soon as it ships.',
+    };
+  }
+  return {
+    heading: 'Dispatch: 1–2 business days',
+    body: 'Your digital certificate is attached and ready now. Your printed keepsake is produced and dispatched within 1–2 business days, with tracked shipping across Australia. We will email your tracking number as soon as it ships.',
+  };
+}
+
 function itemFulfilment(pkg) {
   if (pkg === 'ultimate') return { label: 'Framed · gift box · priority', color: '#6b21a8', bg: '#f3e9fb' };
   if (pkg === 'premium') return { label: 'Printed · post', color: '#9a6a00', bg: '#fbf2dc' };
@@ -89,9 +116,14 @@ function itemFulfilment(pkg) {
  * items. A coloured banner + per-item tags make the fulfilment action obvious:
  * digital-only orders need nothing posted; Premium/Ultimate must be printed and
  * shipped. Sent to ENV.ORDER_NOTIFY_EMAIL, separate from the customer's email.
+ * The rendered certificates are attached to this message (and linked below) so
+ * printing can start straight from the inbox without hunting for files.
  * @param {object} order  fulfilled order snapshot (email, delivery, items, totals)
+ * @param {{certificates?:Array<{certId,name,pdfUrl,pngUrl}>, portalUrl?:string}} [opts]
  */
-export function fulfillmentNotificationHtml(order) {
+export function fulfillmentNotificationHtml(order, opts = {}) {
+  const certs = opts.certificates || [];
+  const portalUrl = opts.portalUrl || '';
   const d = order.delivery || {};
   const f = orderFulfilment(order);
   const when = new Date(order.paidAt || order.createdAt || Date.now()).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' });
@@ -137,10 +169,34 @@ export function fulfillmentNotificationHtml(order) {
         ${row('Placed', esc(when))}
       </table>
     </td></tr>
-    <tr><td style="padding:14px 26px 24px;">
+    <tr><td style="padding:14px 26px 6px;">
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#99A2C4;margin-bottom:8px;">Items (${order.items.length})</div>
       <ul style="margin:0;padding-left:18px;">${items}</ul>
     </td></tr>
+    ${
+      certs.length
+        ? `<tr><td style="padding:8px 26px 24px;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#99A2C4;margin-bottom:8px;">Print files${f.digitalOnly ? '' : ' &middot; attached to this email'}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${certs
+          .map(
+            (c) => `<tr>
+          <td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#0b1020;border-top:1px solid #e3e6f0;">
+            <b>${esc(c.name)}</b> <span style="color:#6E7799;font-size:11px;">${esc(c.certId)}</span>
+          </td>
+          <td align="right" style="padding:6px 0;border-top:1px solid #e3e6f0;white-space:nowrap;">
+            <a href="${esc(c.pdfUrl)}" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#0b1020;">PDF</a>
+            ${c.pngUrl ? `&nbsp;&middot;&nbsp;<a href="${esc(c.pngUrl)}" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6E7799;">PNG</a>` : ''}
+          </td></tr>`
+          )
+          .join('')}
+      </table>
+      ${portalUrl ? `<div style="margin-top:12px;"><a href="${esc(portalUrl)}" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6E7799;">Open full order &rarr;</a></div>` : ''}
+    </td></tr>`
+        : `<tr><td style="padding:8px 26px 24px;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#b91c1c;font-family:Arial,Helvetica,sans-serif;">&#9888; No certificate was rendered for this order — check the function logs before printing.</div>
+    </td></tr>`
+    }
   </table>
 </body></html>`;
 }
@@ -160,6 +216,7 @@ export function orderConfirmationHtml(order, opts = {}) {
     .map(esc)
     .join('<br>');
   const plural = order.items.length > 1;
+  const est = deliveryEstimate(order);
 
   return `<!doctype html>
 <html lang="en"><head>
@@ -204,8 +261,17 @@ export function orderConfirmationHtml(order, opts = {}) {
 
       <tr><td style="padding:10px 32px 4px 32px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#99A2C4;">Delivery</td></tr>
       <tr><td style="padding:0 32px 18px 32px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#C9D0E6;">${addr || '&mdash;'}</td></tr>
-      <tr><td align="center" style="padding:6px 32px 26px 32px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#6E7799;">
-        Printed keepsakes ship within Australia. Keep this email — your certificate link${plural ? 's stay' : ' stays'} live in the registry.
+      <tr><td style="padding:10px 32px 4px 32px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#99A2C4;">What happens next</td></tr>
+      <tr><td style="padding:0 32px 18px 32px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:rgba(217,185,108,0.07);border:1px solid rgba(217,185,108,0.22);border-radius:12px;">
+          <tr><td style="padding:14px 16px;">
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#D9B96C;">${esc(est.heading)}</div>
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#C9D0E6;margin-top:5px;">${esc(est.body)}</div>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td align="center" style="padding:0 32px 26px 32px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#6E7799;">
+        Keep this email — your certificate link${plural ? 's stay' : ' stays'} live in the registry.
       </td></tr>
       <tr><td align="center" style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.06);font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;color:#6E7799;">
         Astralis Celestial Registry &middot; astralisregistry.com

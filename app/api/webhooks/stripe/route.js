@@ -11,6 +11,7 @@
  */
 import { getStripe } from '../../../lib/stripe';
 import { fulfillOrder } from '../../../lib/fulfill';
+import { unpackOrder } from '../../../lib/order-codec';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,17 +38,35 @@ export async function POST(req) {
       const session = event.data.object;
       const orderId = session.metadata?.orderId;
       if (orderId && session.payment_status === 'paid') {
-        await fulfillOrder(orderId, {
-          sessionId: session.id,
-          paymentIntent: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
-          amountTotal: session.amount_total,
-        });
+        const res = await fulfillOrder(
+          orderId,
+          {
+            sessionId: session.id,
+            paymentIntent: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
+            amountTotal: session.amount_total,
+          },
+          // The order as Stripe stored it, for when this instance has no record.
+          unpackOrder(session.metadata)
+        );
+
+        // The buyer has been charged. If we could not deliver, fail the webhook
+        // so Stripe retries (up to 3 days) and the event shows as failed in the
+        // dashboard — never swallow this, or the money is taken in silence.
+        if (!res || !res.ok) {
+          console.error('[webhook] fulfilment failed', orderId, res?.error);
+          return Response.json({ error: res?.error || 'fulfilment_failed' }, { status: 500 });
+        }
+        if (res.order && res.order.emailStatus && !['sent', 'skipped'].includes(res.order.emailStatus)) {
+          console.error('[webhook] receipt email not delivered', orderId, res.order.emailStatus);
+          return Response.json({ error: 'email_not_delivered' }, { status: 500 });
+        }
       }
     }
   } catch (err) {
-    // Log but still 200 — the event was valid; re-driving fulfilment can be
-    // handled separately. (markPaid is idempotent if Stripe retries.)
+    // Unexpected throw on a verified event: 500 so Stripe retries rather than
+    // marking a charged-but-unfulfilled order as successfully handled.
     console.error('[webhook] fulfilment error', err?.message);
+    return Response.json({ error: 'fulfilment_error' }, { status: 500 });
   }
 
   return Response.json({ received: true });

@@ -30,17 +30,30 @@ import { withRetry } from './retry.js';
 
 const publicBase = () => (ENV.SITE_URL || 'https://astralisregistry.com').replace(/\/+$/, '');
 
-export async function fulfillOrder(orderId, payment) {
+/**
+ * @param {string} orderId
+ * @param {object} payment
+ * @param {object} [recovered] Order rebuilt from Stripe metadata. Used only when
+ *   neither the in-memory order nor a durable snapshot is available — i.e. the
+ *   fulfilling instance is not the one that created the order and KV is not
+ *   configured. Without it, that case silently charges the buyer and delivers
+ *   nothing. See ./order-codec.js.
+ */
+export async function fulfillOrder(orderId, payment, recovered) {
   if (!orderId) return { ok: false, error: 'order_not_found' };
 
   // Idempotency: a durable fulfilled snapshot short-circuits any re-entry
   // (webhook + success page, retried webhooks, a cold serverless instance).
   const existing = await getSnapshot(orderId);
-  if (existing && existing.fulfilled) return { ok: true, alreadyFulfilled: true, order: existing };
+  if (existing && existing.fulfilled) return { ok: true, alreadyFulfilled: true, order: await repairEmail(existing) };
 
-  // Resolve the order data: in-memory working order, else the durable pending snapshot.
-  const order = getOrder(orderId) || existing;
+  // Resolve the order data: in-memory working order, else the durable pending
+  // snapshot, else the copy Stripe carried back to us.
+  const order = getOrder(orderId) || existing || recovered || null;
   if (!order) return { ok: false, error: 'order_not_found' };
+  if (!getOrder(orderId) && !existing && recovered) {
+    console.warn('[fulfill] order recovered from Stripe metadata (no KV snapshot)', orderId);
+  }
 
   // Best-effort lock so the webhook and the success-page fallback don't both render/email.
   if (!(await acquireLock(orderId))) {
@@ -50,7 +63,7 @@ export async function fulfillOrder(orderId, payment) {
 
   try {
     const again = await getSnapshot(orderId);
-    if (again && again.fulfilled) return { ok: true, alreadyFulfilled: true, order: again };
+    if (again && again.fulfilled) return { ok: true, alreadyFulfilled: true, order: await repairEmail(again) };
 
     if (getOrder(orderId)) markPaid(orderId, payment); // in-memory lifecycle + claims
 
@@ -99,8 +112,9 @@ export async function fulfillOrder(orderId, payment) {
 
     // 5: confirmation email (retry + logging; never undoes a paid fulfilment)
     snap.emailStatus = await sendConfirmation(snap, certs);
-    // 5b: internal "new order to ship" notification to the owner (best-effort).
-    await sendOwnerNotification(snap);
+    // 5b: internal "new order to ship" notification to the owner, carrying the
+    // rendered certificates so printing can start straight from the inbox.
+    snap.ownerEmailStatus = await sendOwnerNotification(snap, certs);
     await putSnapshot(snap);
     if (snap.emailStatus === 'sent' && getOrder(orderId)) markEmailSent(orderId);
 
@@ -108,6 +122,47 @@ export async function fulfillOrder(orderId, payment) {
   } finally {
     await releaseLock(orderId);
   }
+}
+
+/**
+ * Re-send the receipt for an order that is already fulfilled but whose email
+ * never landed. Without this, a retried webhook keeps short-circuiting on the
+ * fulfilled snapshot and the buyer never receives anything. Certificates are
+ * re-attached from the stored blobs; nothing is re-rendered or re-charged.
+ */
+async function repairEmail(snap) {
+  if (!snap || snap.emailStatus !== 'failed') return snap;
+  const certs = (snap.certificates || []).map((c) => ({ certId: c.certId, name: c.name }));
+  console.warn('[fulfill] re-sending previously failed receipt', snap.orderNo);
+  snap.emailStatus = await sendConfirmation(snap, certs);
+  try {
+    await putSnapshot(snap);
+  } catch (err) {
+    console.error('[fulfill] snapshot persist failed after email repair', snap.orderNo, err?.message);
+  }
+  return snap;
+}
+
+/** Signed, no-login download links for each rendered certificate. */
+function certLinksFor(snap, certs) {
+  const base = publicBase();
+  return certs.map((c) => ({
+    certId: c.certId,
+    name: c.name,
+    pdfUrl: `${base}/api/orders/${snap.id}/certificate/${c.certId}?format=pdf&token=${snap.token}`,
+    pngUrl: `${base}/api/orders/${snap.id}/certificate/${c.certId}?format=png&token=${snap.token}`,
+  }));
+}
+
+/** Load the stored PDFs as Resend attachments. Missing blobs are skipped — the
+ *  links still work, since the download route re-renders on demand. */
+async function pdfAttachments(certs) {
+  const out = [];
+  for (const c of certs) {
+    const pdf = await getBlob(c.certId, 'pdf');
+    if (pdf) out.push({ filename: `Astralis-Certificate-${c.certId}.pdf`, content: pdf.toString('base64') });
+  }
+  return out;
 }
 
 /** Send the confirmation email with PDF attachments, retrying on failure and
@@ -122,18 +177,8 @@ async function sendConfirmation(snap, certs) {
   const token = snap.token;
   const portalUrl = `${base}/orders/${snap.id}?token=${token}`;
   const certViewUrl = `${base}/?cert=${snap.id}&token=${token}`;   // client-rendered, downloadable viewer
-  const certLinks = certs.map((c) => ({
-    certId: c.certId,
-    name: c.name,
-    pdfUrl: `${base}/api/orders/${snap.id}/certificate/${c.certId}?format=pdf&token=${token}`,
-    pngUrl: `${base}/api/orders/${snap.id}/certificate/${c.certId}?format=png&token=${token}`,
-  }));
-
-  const attachments = [];
-  for (const c of certs) {
-    const pdf = await getBlob(c.certId, 'pdf');
-    if (pdf) attachments.push({ filename: `Astralis-Certificate-${c.certId}.pdf`, content: pdf.toString('base64') });
-  }
+  const certLinks = certLinksFor(snap, certs);
+  const attachments = await pdfAttachments(certs);
 
   const html = orderConfirmationHtml(snap, { certificates: certLinks, portalUrl, certViewUrl });
   const resend = new Resend(ENV.RESEND_API_KEY);
@@ -170,30 +215,59 @@ async function sendConfirmation(snap, certs) {
   }
 }
 
-/** Internal notification so the owner can ship the order via AusPost. Best-effort:
- *  a failure here never affects the (already secured) payment, certificates or
- *  customer email. */
-async function sendOwnerNotification(snap) {
+/** Internal notification so the owner can fulfil the order: buyer, address and
+ *  the rendered certificates (attached when something has to be printed, always
+ *  linked). Retried like the customer receipt — if this never lands, the order
+ *  is never printed, so it is not fire-and-forget. A failure here still cannot
+ *  undo the already-secured payment, certificates or customer email.
+ *  @returns {Promise<'sent'|'failed'|'skipped'>}
+ */
+async function sendOwnerNotification(snap, certs = []) {
   if (!isResendConfigured() || !ENV.ORDER_NOTIFY_EMAIL) {
     snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', status: 'skipped' });
-    return;
+    return 'skipped';
   }
+
+  const base = publicBase();
+  const certLinks = certLinksFor(snap, certs);
+  const needsShip = orderFulfilment(snap).needsShip;
+  // Attach the print-ready PDFs only when there is something to print; digital
+  // orders get the links alone so the inbox stays light.
+  const attachments = needsShip ? await pdfAttachments(certs) : [];
+  const shipTo = (snap.delivery && snap.delivery.name) || snap.email;
+
   try {
     const resend = new Resend(ENV.RESEND_API_KEY);
-    const shipTo = (snap.delivery && snap.delivery.name) || snap.email;
-    const r = await resend.emails.send({
-      from: ENV.RESEND_FROM,
-      to: ENV.ORDER_NOTIFY_EMAIL,
-      replyTo: snap.email,
-      // subject leads with the fulfilment action so digital ($39) vs ship
-      // ($79) vs priority ($139) orders are obvious in the inbox.
-      subject: `${orderFulfilment(snap).subject} · ${snap.orderNo} · ${shipTo}`,
-      html: fulfillmentNotificationHtml(snap),
-    });
-    if (r && r.error) throw new Error(r.error.message || 'resend_error');
-    snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', status: 'sent', providerId: r?.data?.id || null });
+    const res = await withRetry(
+      async () => {
+        const r = await resend.emails.send({
+          from: ENV.RESEND_FROM,
+          to: ENV.ORDER_NOTIFY_EMAIL,
+          replyTo: snap.email,
+          // subject leads with the fulfilment action so digital ($39) vs ship
+          // ($79) vs priority ($139) orders are obvious in the inbox.
+          subject: `${orderFulfilment(snap).subject} · ${snap.orderNo} · ${shipTo}`,
+          html: fulfillmentNotificationHtml(snap, {
+            certificates: certLinks,
+            portalUrl: `${base}/orders/${snap.id}?token=${snap.token}`,
+          }),
+          attachments,
+        });
+        if (r && r.error) throw new Error(r.error.message || 'resend_error');
+        return r;
+      },
+      {
+        tries: 3,
+        baseDelayMs: 600,
+        onError: (err, attempt) =>
+          snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', attempt, status: 'retry', error: String(err?.message || err) }),
+      }
+    );
+    snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', status: 'sent', providerId: res?.data?.id || null });
+    return 'sent';
   } catch (err) {
     snap.deliveryLog.push({ ts: Date.now(), stage: 'owner_email', status: 'failed', error: String(err?.message || err) });
-    console.error('[fulfill] owner notification failed', snap.orderNo, err?.message);
+    console.error('[fulfill] owner notification failed after retries', snap.orderNo, err?.message);
+    return 'failed';
   }
 }
