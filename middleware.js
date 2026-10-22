@@ -13,9 +13,13 @@ export function middleware(req) {
   const url = req.nextUrl.clone();
   const host = req.headers.get('host') || '';
   const proto = req.headers.get('x-forwarded-proto') || 'https';
+  const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
 
-  // 1. Force HTTPS (defensive; Vercel handles this at the edge too)
-  if (proto === 'http') {
+  // 1. Force HTTPS (defensive; Vercel handles this at the edge too). Never
+  //    locally: a dev server has no TLS listener, so redirecting there makes
+  //    every local request unreachable (and a 301 on a POST would drop the
+  //    request body).
+  if (!isLocal && proto === 'http') {
     url.protocol = 'https:';
     return NextResponse.redirect(url, 301);
   }
