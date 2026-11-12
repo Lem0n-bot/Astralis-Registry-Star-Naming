@@ -7,7 +7,14 @@
  * Reports booleans only — never a key, a prefix or a length. Safe to call
  * publicly, though `ready:false` is the signal that matters.
  */
-import { ENV, isStripeConfigured, isWebhookConfigured, isResendConfigured, isKvConfigured } from '../../lib/env.js';
+import {
+  ENV,
+  isStripeConfigured,
+  isWebhookConfigured,
+  isResendConfigured,
+  isKvConfigured,
+  isAdminApiConfigured,
+} from '../../lib/env.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,6 +44,8 @@ export async function GET() {
     siteUrl: !!ENV.SITE_URL,
     // Optional: orders also survive via Stripe session metadata (lib/order-codec).
     kv: isKvConfigured(),
+    // Optional: enables the manual fulfilment replay at /api/admin/fulfill.
+    adminReplay: isAdminApiConfigured(),
   };
 
   // Everything an order needs to be taken, fulfilled and acknowledged. siteUrl,
@@ -53,6 +62,14 @@ export async function GET() {
       // Orders are recoverable from Stripe metadata even without KV, so this is
       // informational rather than a failure.
       durableStore: checks.kv ? 'vercel-kv' : 'stripe-metadata-fallback',
+      // Which path fulfils an order, and the render budget it works inside.
+      // Certificate rendering is deliberately bounded so the confirmation email
+      // always goes out within the function's maxDuration.
+      fulfilment: {
+        path: checks.stripeWebhookSecret ? 'stripe-webhook' : 'success-page-fallback',
+        renderBudgetMs: Number(process.env.CERT_RENDER_BUDGET_MS || 34000),
+        perCertificateTimeoutMs: Number(process.env.CERT_RENDER_TIMEOUT_MS || 22000),
+      },
       // Masked so you can confirm WHICH inbox receives the order copies for
       // printing, without publishing the address.
       ordersCopiedTo: mask(ENV.ORDER_NOTIFY_EMAIL),

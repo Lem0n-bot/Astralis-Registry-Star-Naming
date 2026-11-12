@@ -190,7 +190,10 @@ All variables are documented in [`.env.example`](.env.example). Key ones:
 | `STRIPE_SECRET_KEY` | Stripe | Server-side key. Required for checkout. |
 | `STRIPE_WEBHOOK_SECRET` | Stripe | Verifies webhook signatures. Required for reliable fulfilment. |
 | `RESEND_API_KEY` / `RESEND_FROM` | Resend | Transactional email; `RESEND_FROM` must be a verified sender. |
-| `ORDER_NOTIFY_EMAIL` | Resend | Where internal "new order" notifications go. |
+| `OWNER_EMAIL` | Resend | Where the owner's copy of every order goes. (`ORDER_NOTIFY_EMAIL` is the old name, still honoured.) |
+| `OWNER_COPY_PACKAGES` | - | Which packages attach the certificate PDF to that copy. Default `standard,premium,ultimate`; `none` disables attachments. Does **not** control whether the email is sent. |
+| `ADMIN_SECRET` | - | Password for the private certificate generator at `/admin/certificate`. Min 16 chars; unset = the page 401s. |
+| `ADMIN_API_TOKEN` | - | Bearer token for the fulfilment replay at `/api/admin/fulfill`. Min 24 chars; unset = the route 404s. |
 | `ORDER_TOKEN_SECRET` | - | HMAC secret for no-login links. **Set a long random value in production.** |
 | `NEXT_PUBLIC_SITE_URL` | - | Absolute origin for success/cancel + email links. |
 | `NEXT_PUBLIC_GA4_ID` | Google Analytics | Optional GA4 Measurement ID (`G-XXXXXXXXXX`). Loads only after cookie consent; unset = analytics silently off. |
@@ -198,7 +201,36 @@ All variables are documented in [`.env.example`](.env.example). Key ones:
 | `PUPPETEER_EXECUTABLE_PATH` | - | Local-dev path to system Chrome; leave unset on Vercel. |
 
 See [docs/STRIPE_SETUP.md](docs/STRIPE_SETUP.md) for the Stripe dashboard
-configuration.
+configuration, and [docs/RUNBOOK-FULFILMENT.md](docs/RUNBOOK-FULFILMENT.md) for
+recovering an order that was charged but never delivered.
+
+## Private certificate generator
+
+`/admin/certificate` renders a certificate from hand-entered details and hands
+back the PDF — no Stripe session, no charge — optionally emailing it to a
+customer. It runs the same `cert-template.js` → `render.js` pipeline a paying
+customer goes through, so the file is identical to a purchased one.
+
+Set `ADMIN_SECRET`, open the page, and enter it when prompted. The password is
+exchanged for a signed, httpOnly, `SameSite=Strict` session cookie that lasts 8
+hours; it is never placed in a URL. `middleware.js` gates the page *before* it
+renders, so an unauthenticated request receives a 401 containing nothing but a
+password field. Login attempts are rate limited per IP (8 per 10 minutes) and
+globally, backed by KV so the limit holds across serverless instances.
+
+Star details can be auto-filled from a catalogue id (`AST-660055`). The whole
+38,000-star catalogue is a pure function of each star's index — no database —
+so `lib/star-catalog.js` reproduces it server-side by extracting the explorer's
+own generators from `public/index.html`, exactly as `cert-template.js` does.
+Entering the star fields by hand works too.
+
+**Generating here does not mark the star as claimed.** Claims live in
+`lib/orders.js`, an in-memory per-instance map, and the explorer's "Already
+Named" scarcity is a deterministic hash of the star index rather than a claims
+lookup — so a claim written here would change nothing a customer sees while
+looking authoritative in the code. Admin certificates are also usually reprints
+for a star that is already sold. Making this meaningful would need a durable
+claims collection in `lib/store.js` first.
 
 ## Deployment
 

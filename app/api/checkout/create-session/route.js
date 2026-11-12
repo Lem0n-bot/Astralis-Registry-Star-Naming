@@ -10,7 +10,8 @@ import { validateOrderInput, PACKAGES, CURRENCY } from '../../../lib/catalog';
 import { createOrder, attachSession } from '../../../lib/orders';
 import { putOrder as putSnapshot } from '../../../lib/store.js';
 import { packOrder } from '../../../lib/order-codec';
-import { isKvConfigured, isResendConfigured } from '../../../lib/env.js';
+import { isKvConfigured, isResendConfigured, isWebhookConfigured } from '../../../lib/env.js';
+import { log, errFields } from '../../../lib/log.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,15 @@ export async function POST(req) {
   // Never take money we cannot acknowledge: without Resend there is no receipt
   // and no certificate delivery, so refuse the sale instead of charging silently.
   if (!isResendConfigured()) {
-    console.error('[create-session] refusing checkout: RESEND_API_KEY is not set');
+    log.error('create_session.refused', { reason: 'resend_not_configured' });
+    return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
+  }
+
+  // Without a webhook secret nothing authoritative will ever fulfil the order:
+  // the success page is only a dev-time fallback, so a customer who closes the
+  // tab would be charged and receive nothing. Refuse rather than risk that.
+  if (!isWebhookConfigured() && process.env.NODE_ENV === 'production') {
+    log.error('create_session.refused', { reason: 'webhook_not_configured' });
     return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
   }
 
@@ -53,7 +62,11 @@ export async function POST(req) {
   // must be configured — otherwise the payment would be unrecoverable.
   const packed = packOrder(order);
   if (!packed && !isKvConfigured()) {
-    console.error('[create-session] refusing checkout: order too large to recover and KV is not configured', order.orderNo);
+    log.error('create_session.refused', {
+      reason: 'order_unrecoverable',
+      orderNo: order.orderNo,
+      items: order.items.length,
+    });
     return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
   }
 
@@ -105,13 +118,33 @@ export async function POST(req) {
       cancel_url: `${origin}/checkout/cancel`,
     });
   } catch (err) {
-    console.error('[create-session] stripe error', err?.message);
+    log.error('create_session.stripe_error', { orderNo: order.orderNo, ...errFields(err) });
     return Response.json({ error: 'stripe_error' }, { status: 502 });
   }
 
   attachSession(order.id, session.id);
   // Persist a durable copy so fulfilment works even if the webhook lands on a
   // cold/other serverless instance (and so KV-backed deploys survive restarts).
-  try { await putSnapshot(order); } catch (e) { console.error('[create-session] snapshot persist failed', e?.message); }
+  let snapshotted = false;
+  try {
+    await putSnapshot(order);
+    snapshotted = true;
+  } catch (err) {
+    log.error('create_session.snapshot_persist_failed', { orderNo: order.orderNo, ...errFields(err) });
+  }
+
+  // The last line logged before the customer leaves for Stripe. Pair it with
+  // webhook.received on the same orderId to see exactly where an order stopped.
+  log.info('create_session.created', {
+    orderId: order.id,
+    orderNo: order.orderNo,
+    email: order.email,
+    sessionId: session.id,
+    items: order.items.length,
+    totalCents: order.totalCents,
+    snapshotted,
+    recoverableFromMetadata: !!packed,
+  });
+
   return Response.json({ url: session.url, orderNo: order.orderNo });
 }

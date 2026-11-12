@@ -15,3 +15,20 @@ export async function withRetry(fn, { tries = 3, baseDelayMs = 400, onError } = 
   }
   throw lastErr;
 }
+
+/**
+ * Reject after `ms` so a wedged dependency cannot consume the whole invocation.
+ * Used to bound headless-Chromium renders, which are the only step in the
+ * fulfilment path that can outlive a serverless function's maxDuration.
+ * Note the underlying work is abandoned, not cancelled — callers must be safe
+ * to retry.
+ */
+export function withTimeout(promise, ms, label = 'operation') {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(label + '_timeout_after_' + ms + 'ms')), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}

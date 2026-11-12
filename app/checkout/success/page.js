@@ -130,23 +130,69 @@ export default function CheckoutSuccess() {
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
   }, []);
 
+  // Payment confirmation and order fulfilment are two different facts, and this
+  // page must never present a delay in the second as a failure of the first.
+  // Stripe's `paid` is the truth about the charge and is available immediately;
+  // the certificates appear once the webhook finishes rendering them, so keep
+  // polling quietly until they do. (Previously a slow render made this fetch
+  // time out, and a customer who had been charged was told their payment
+  // "could not be confirmed".)
   useEffect(() => {
     const sid = new URLSearchParams(window.location.search).get('session_id');
     if (!sid) {
       setState({ loading: false, error: 'No checkout session was found.', data: null });
       return;
     }
+
+    const MAX_POLLS = 12; // ~45s, then stop and let the email do its job
+    const POLL_MS = 4000;
     let cancelled = false;
-    fetch(`/api/checkout/order?session_id=${encodeURIComponent(sid)}`)
-      .then((r) => r.json().catch(() => ({})))
-      .then((data) => {
-        if (cancelled) return;
-        if (data && data.paid) setState({ loading: false, error: null, data });
-        else setState({ loading: false, error: 'We could not confirm this payment. If you were charged, please contact support.', data });
-      })
-      .catch(() => !cancelled && setState({ loading: false, error: 'Something went wrong confirming your order.', data: null }));
+    let timer = 0;
+    let attempt = 0;
+
+    const load = async () => {
+      attempt += 1;
+      let data = null;
+      try {
+        const r = await fetch(`/api/checkout/order?session_id=${encodeURIComponent(sid)}`);
+        data = await r.json().catch(() => null);
+      } catch {
+        data = null;
+      }
+      if (cancelled) return;
+
+      if (data && data.paid) {
+        setState({ loading: false, error: null, data });
+        // Certificates are still being prepared — look again shortly.
+        if (data.fulfilment === 'pending' && attempt < MAX_POLLS) timer = setTimeout(load, POLL_MS);
+        return;
+      }
+      if (data && data.paid === false) {
+        setState({
+          loading: false,
+          error: 'This checkout has not been paid. If you believe you were charged, contact support and quote this page.',
+          data,
+        });
+        return;
+      }
+      // Could not read the order. Retry a couple of times, then say so without
+      // casting doubt on a payment we simply have not managed to look up.
+      if (attempt < 3) {
+        timer = setTimeout(load, 2000);
+        return;
+      }
+      setState({
+        loading: false,
+        error:
+          'We could not load your order details just now. If your payment went through, your certificate is still on its way by email — nothing has been lost. Contact support if it has not arrived within the hour.',
+        data: null,
+      });
+    };
+
+    load();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, []);
 
@@ -232,6 +278,14 @@ export default function CheckoutSuccess() {
               </div>
             )}
 
+            {data.fulfilment === 'pending' && (
+              <p style={styles.preparing}>
+                <span style={styles.dot} aria-hidden="true" />
+                Your certificate{(data.items?.length || 0) > 1 ? 's are' : ' is'} being prepared — the email arrives within a
+                few minutes. You can close this page.
+              </p>
+            )}
+
             <p style={styles.next}>
               {(data.certificates && data.certificates.length)
                 ? 'Your certificates are attached to the email and downloadable above. Printed keepsakes ship within Australia.'
@@ -251,7 +305,7 @@ export default function CheckoutSuccess() {
           </>
         )}
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}`}</style>
     </main>
   );
 }
@@ -303,6 +357,16 @@ const styles = {
   li: { display: 'flex', flexDirection: 'column', gap: 2, padding: '10px 0', borderTop: '1px solid rgba(255,255,255,.07)' },
   total: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '8px 0 4px', paddingTop: 14, borderTop: '1px solid rgba(217,185,108,.3)' },
   next: { color: C.mute, fontSize: 12.5, lineHeight: 1.6, margin: '18px 0 22px' },
+  preparing: {
+    display: 'flex', alignItems: 'flex-start', gap: 9, textAlign: 'left',
+    margin: '16px 0 0', padding: '11px 13px', borderRadius: 12,
+    border: '1px solid rgba(217,185,108,0.2)', background: 'rgba(217,185,108,0.05)',
+    color: C.mute, fontSize: 12.5, lineHeight: 1.55,
+  },
+  dot: {
+    flex: '0 0 auto', width: 7, height: 7, marginTop: 5, borderRadius: '50%',
+    background: C.gold, animation: 'pulse 1.4s ease-in-out infinite',
+  },
   certs: { display: 'grid', gap: 10, margin: '18px 0 4px' },
   certBtn: {
     display: 'block', padding: '12px 16px', borderRadius: 12, textDecoration: 'none',

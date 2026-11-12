@@ -25,6 +25,12 @@ const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
 ];
 
+// Private surfaces: keep them out of search results and out of shared caches.
+const noIndexHeaders = [
+  { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nosnippet' },
+  { key: 'Cache-Control', value: 'no-store, max-age=0, must-revalidate' },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -42,6 +48,11 @@ const nextConfig = {
       '/api/webhooks/stripe': ['./node_modules/@sparticuz/chromium/bin/**'],
       '/api/checkout/order': ['./node_modules/@sparticuz/chromium/bin/**'],
       '/api/orders/[id]/certificate/[certId]': ['./node_modules/@sparticuz/chromium/bin/**'],
+      // The manual fulfilment replay renders certificates too — without this it
+      // would fail exactly when it is needed most (recovering a paid order).
+      '/api/admin/fulfill': ['./node_modules/@sparticuz/chromium/bin/**'],
+      // The private admin certificate generator renders with the same pipeline.
+      '/api/admin/certificate/generate': ['./node_modules/@sparticuz/chromium/bin/**'],
     },
   },
 
@@ -50,6 +61,17 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        // The admin pages are private and must never be indexed or cached by a
+        // shared proxy. middleware.js is what actually enforces access; this is
+        // the belt to its braces, and covers the 200 responses it lets through.
+        source: '/admin/:path*',
+        headers: noIndexHeaders,
+      },
+      {
+        source: '/api/admin/:path*',
+        headers: noIndexHeaders,
       },
     ];
   },
