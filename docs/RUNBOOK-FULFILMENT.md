@@ -28,6 +28,47 @@ to set. `fulfilment.path` should read `stripe-webhook`; `success-page-fallback`
 means `STRIPE_WEBHOOK_SECRET` is unset and only the success page would deliver,
 which is a dev-only configuration.
 
+`degraded:true` with `warnings:["kv_unreachable"]` means orders still complete
+but nothing is durable — go to §1a.
+
+## 1a. The durable store is unreachable
+
+`checks.kv` is a **live** write + read-back, not an env check, so this is the
+case where `store.configured` is true and `store.reachable` is false.
+
+This has happened in production: the free Upstash database is deleted after 14
+days with no commands, and it was. Every KV call then failed with
+`getaddrinfo ENOTFOUND`.
+
+What still works, by design: fulfilment rebuilds the order from the Stripe
+session metadata, renders the certificates and emails them with the PDFs
+attached. `kv.unreachable` and `fulfil.degraded` are logged, and the owner copy
+of the order carries an amber banner naming the Checkout Session to replay.
+
+What does not work: the no-login portal and the certificate download links, for
+every order fulfilled during the outage. They need the snapshot.
+
+Recovery:
+
+1. Create a new database (Vercel → Storage → Upstash Redis) and set
+   `KV_REST_API_URL` + `KV_REST_API_TOKEN`. The Marketplace integration sets
+   both for you. Redeploy.
+2. Confirm: `curl -s "$SITE/api/health" | jq .store` → `reachable: true`.
+3. Replay each order fulfilled during the outage (§3). It is idempotent and
+   reuses certificate ids, so the links already in a customer's inbox start
+   working — nothing is re-charged and no number changes.
+
+Prevention: a daily Vercel Cron (`vercel.json` → `/api/keepalive`) does a real
+write so the idle timer never expires. It needs `CRON_SECRET` set, or the route
+404s and the cron run fails. Check it:
+
+```bash
+curl -s -H "x-cron-secret: $CRON_SECRET" "$SITE/api/keepalive" | jq
+```
+
+`reachable:true` with an advancing `hits` is healthy; a 503 means the store is
+gone again. The cron's run history is in Vercel → Project → Cron Jobs.
+
 ## 2. Look at the order (read-only, changes nothing)
 
 Get the Checkout Session id from Stripe → Payments → the payment → *Checkout
@@ -107,7 +148,8 @@ Where it stops tells you what broke:
 | `cert.deferred` / `cert.render_failed` | Rendering ran out of budget. Not a delivery failure: the email still goes out and the links render on demand. |
 | `fulfil.in_progress_elsewhere` | Two paths raced. The webhook returns 500 on purpose so Stripe retries. |
 | `email.failed` | Resend rejected the send. The webhook returns 500 so the retry re-sends via `repairEmail`. |
-| `fulfil.snapshot_persist_failed` | KV write failed — the portal and download links would be dead, so this is reported as a failure and retried. |
+| `fulfil.snapshot_persist_failed` | The store answered and refused the write (rotated token, oversized value) — the portal and download links would be dead, so this is reported as a failure and retried. |
+| `kv.unreachable` → `fulfil.degraded` | The store is gone, not refusing. See §1a. `delivered:true` means the customer has their certificates and the webhook deliberately returned 200; `delivered:false` means it returned 500 so Stripe retries. |
 
 ## Invariants — do not "fix" these back
 
@@ -122,3 +164,14 @@ Where it stops tells you what broke:
   email must be reachable no matter what Chromium does.
 - **A certificate with no cached PDF is not a lost certificate.** The download
   route re-renders on demand and the client-side viewer needs no Chromium.
+- **An unreachable store degrades; it never throws.** The unguarded KV read at
+  the top of `fulfillOrder()` is what turned a deleted database into a webhook
+  that answered 500 on every Stripe retry, so no customer email was ever sent.
+  `lib/store.js` reports instead of throwing — keep it that way.
+- **A delivered-but-not-durable order answers 200.** Retrying cannot create a
+  snapshot while the store is down, and each retry would re-send the receipt.
+  This applies *only* when the email went out with the PDFs attached; with
+  nothing in the customer's hands it is still a 500.
+- **Probe commands are unique per run.** A framework-cached HTTP response once
+  made a healthy store report a 503 — and the same mechanism can make a dead
+  store look alive, which is worse.
