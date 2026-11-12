@@ -2394,9 +2394,11 @@ function buildGalaxy(){
     if(si.status==='available'){const a=constReps[si.ci]||(constReps[si.ci]=[]);if(a.length<3)a.push(i);}
   }
   E.constReps=constReps;
-  const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(190,205,255,.55)',.30);
-  const texGold=spriteTexture('rgba(255,238,196,1)','rgba(217,185,108,.3)',.30);
-  const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(242,220,162,.85)',.32);
+  /* aura alphas raised so the glow around the core carries weight instead of
+     washing out; the core itself is forced opaque in the fragment shader */
+  const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(206,220,255,.82)',.30);
+  const texGold=spriteTexture('rgba(255,238,196,1)','rgba(231,201,126,.62)',.30);
+  const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(248,232,186,.95)',.32);
   function makePoints(idx,tex,size,useColor){
     const g=new THREE.BufferGeometry();
     const p=new Float32Array(idx.length*3),c=new Float32Array(idx.length*3);
@@ -2410,7 +2412,7 @@ function buildGalaxy(){
     g.setAttribute('aTaken',new THREE.BufferAttribute(new Float32Array(idx.length),1));
     const m=new THREE.PointsMaterial({size,map:tex,transparent:true,depthWrite:false,
       blending:THREE.AdditiveBlending,vertexColors:useColor,color:useColor?0xffffff:0xf2dca2,
-      sizeAttenuation:true,opacity:.95});
+      sizeAttenuation:true,opacity:1});   /* was .95 - it only diluted the core */
     const pts=new THREE.Points(g,m);E.scene.add(pts);return pts;
   }
   E.groups.available=makePoints(buckets.available,texSoft,2.1,true);
@@ -2441,8 +2443,30 @@ function buildGalaxy(){
          clip space - cheaper and far simpler than rebuilding the cloud, and the
          CPU position buffers stay intact so raycasting still maps 1:1. */
       sh.vertexShader=sh.vertexShader.replace('#include <fog_vertex>',
-        'if(uHideTaken>0.5&&aTaken>0.5){gl_PointSize=0.0;gl_Position=vec4(2.0,2.0,2.0,1.0);}\n'+'\n\t#include <fog_vertex>');
-      sh.vertexShader='uniform vec3 uRayO;uniform vec3 uRayD;uniform float uActive;uniform float uR;uniform float uPull;uniform float uHideTaken;attribute float aTaken;\n'
+        'if(uHideTaken>0.5&&aTaken>0.5){gl_PointSize=0.0;gl_Position=vec4(2.0,2.0,2.0,1.0);}\n'+'vPtSize=gl_PointSize;\n\t#include <fog_vertex>');
+
+      /* OPAQUE CORE.
+         These clouds blend additively with depthWrite off, so a star never
+         occludes anything - whatever sits behind it is ADDED to it. A star only
+         reads as solid where its own contribution saturates the channel, and it
+         never did: the per-vertex colours run 0.52-1.2 (mean 0.87) and the
+         material sat at 0.95 opacity, so a typical star contributed ~0.82 and
+         the background showed straight through the disc. No amount of tuning
+         the sprite could fix that, because the transparency was in the blend,
+         not the texture.
+         So force the centre to full white at full alpha. src then contributes
+         1.0, the add clamps at 1.0, and the core is genuinely opaque whatever
+         is behind it. Ramped in by on-screen point size so this only applies to
+         a star being flown up to - far away the field keeps its soft, dusty
+         look instead of turning into hard white dots. */
+      sh.fragmentShader='varying float vPtSize;\n'+sh.fragmentShader.replace(
+        'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+        'gl_FragColor = vec4( outgoingLight, diffuseColor.a );\n'
+        +'float cD=length(gl_PointCoord-vec2(0.5));'
+        +'float cK=(1.0-smoothstep(0.145,0.185,cD))*clamp((vPtSize-6.0)/18.0,0.0,1.0);'
+        +'gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(1.0),cK);'
+        +'gl_FragColor.a=mix(gl_FragColor.a,1.0,cK);');
+      sh.vertexShader='uniform vec3 uRayO;uniform vec3 uRayD;uniform float uActive;uniform float uR;uniform float uPull;uniform float uHideTaken;attribute float aTaken;varying float vPtSize;\n'
         +sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\n'
           +'vec3 gRel=position-uRayO;float gT=dot(gRel,uRayD);'
@@ -2649,7 +2673,10 @@ function buildGalaxy(){
   {
     /* neutral-white sprites; tinted per status (white/featured/gold) on select */
     const sTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.85)',.34);
-    E.selMarker=new THREE.Sprite(new THREE.SpriteMaterial({map:sTex,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff}));
+    /* NormalBlending + depthTest off: the marker on the star you selected is
+       drawn as a genuinely opaque disc rather than an additive glow, so it can
+       never read as see-through no matter what lies behind it. */
+    E.selMarker=new THREE.Sprite(new THREE.SpriteMaterial({map:sTex,transparent:true,opacity:0,depthWrite:false,depthTest:false,blending:THREE.NormalBlending,color:0xffffff}));
     E.selMarker.visible=false;E.scene.add(E.selMarker);
     /* soft halo behind it for extra presence up close */
     E.selHalo=new THREE.Sprite(new THREE.SpriteMaterial({map:spriteTexture('rgba(255,255,255,.7)','rgba(255,255,255,.16)'),transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff}));
@@ -3783,11 +3810,16 @@ function loop(){
 
   /* progressive richness with zoom + brightness control when zoomed in */
   const z=E.sph.r;
-  const fade=THREE.MathUtils.clamp((z-14)/150,0.62,1);     /* dims gently, stars stay solid */
+  /* Dim with distance, but only gently. This used to floor at .62 and scale a
+     .95 base, so flying up to a star dropped it to ~.59 opacity - the closer
+     you got, the more see-through it became, which is the opposite of what
+     close-up wants. Point size is still pulled back hard (sizeFade) to keep the
+     field from blowing out, and the opaque core is forced in the shader. */
+  const fade=THREE.MathUtils.clamp((z-14)/150,0.85,1);
   const sizeFade=THREE.MathUtils.clamp((z-14)/170,0.35,1); /* shrink points harder than opacity */
   ['available','reserved','featured'].forEach(k=>{
     const m=E.groups[k].material;
-    m.opacity=.95*fade;
+    m.opacity=fade;
     m.size=E.baseSizes[k]*(0.35+0.65*sizeFade);
   });
   if(E.coreSprite)E.coreSprite.material.opacity=THREE.MathUtils.clamp((z-30)/220,0.1,0.95);
