@@ -134,6 +134,9 @@ function itemFulfilment(pkg) {
 export function fulfillmentNotificationHtml(order, opts = {}) {
   const certs = opts.certificates || [];
   const portalUrl = opts.portalUrl || '';
+  // Operational warning banner, e.g. "the durable store was unreachable, replay
+  // this order once it is back". The customer's own receipt never carries it.
+  const notice = opts.notice || '';
   const d = order.delivery || {};
   const f = orderFulfilment(order);
   const when = new Date(order.paidAt || order.createdAt || Date.now()).toLocaleString('en-AU', { timeZone: 'Australia/Sydney' });
@@ -169,6 +172,13 @@ export function fulfillmentNotificationHtml(order, opts = {}) {
     <tr><td style="padding:13px 26px;background:${f.bg};">
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;letter-spacing:.4px;color:${f.color};">${f.digitalOnly ? '&#10003; ' : '&#10148; '}${f.banner}</div>
     </td></tr>
+    ${
+      notice
+        ? `<tr><td style="padding:12px 26px;background:#FFF4E5;border-top:1px solid #F0D9B5;">
+      <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.55;color:#7C4A03;">&#9888; ${esc(notice)}</div>
+    </td></tr>`
+        : ''
+    }
     <tr><td style="padding:18px 26px 6px;">
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#99A2C4;margin-bottom:6px;">${f.digitalOnly ? 'Customer' : 'Ship to'}</div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0">

@@ -211,6 +211,13 @@ export async function POST(req) {
     error: res?.ok ? null : res?.error || 'fulfilment_failed',
     alreadyFulfilled: !!res?.alreadyFulfilled,
     inFlight: !!res?.inFlight,
+    // The order was delivered, but the durable store was unreachable, so the
+    // portal and download links still do not work. Replaying again is exactly
+    // the right move — once /api/health reports the store reachable.
+    degraded: !!res?.degraded,
+    ...(res?.degraded
+      ? { warning: 'store_unreachable: delivered but not durable. Fix KV, then replay again to restore portal + download links.' }
+      : {}),
     elapsedMs: since(t0),
     ...(after.error ? {} : describe(after)),
   };

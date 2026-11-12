@@ -176,7 +176,15 @@ export async function fulfillOrder(orderId, payment, recovered, opts = {}) {
       });
     }
 
-    await persistSnapshot(snap, 'paid');
+    const paidPersist = await persistSnapshot(snap, 'paid');
+    if (paidPersist === 'degraded') {
+      // The store is unreachable (a deleted free-tier database is how this first
+      // happened). Carry on: the order was rebuilt from Stripe metadata, and
+      // rendering + both emails still run. Only durability is lost, and that is
+      // recorded here so the owner copy and the logs both say so.
+      snap.storeDegraded = true;
+      snap.deliveryLog.push({ ts: Date.now(), stage: 'store', status: 'degraded', reason: 'kv_unreachable' });
+    }
 
     // 4: render what fits in the budget. Each failure/skip is recorded and the
     // certificate stays deliverable through its on-demand download link.
@@ -238,22 +246,54 @@ export async function fulfillOrder(orderId, payment, recovered, opts = {}) {
       if (snap.emailStatus === 'sent') markEmailSent(orderId);
     }
 
+    // PDFs the customer physically received, as opposed to links they must
+    // follow. Only the freshly rendered buffers count: with the store down,
+    // getBlob() has nothing to give pdfAttachments() either.
+    const attachedPdfs = certs.filter((c) => c.pdf).length;
+
     log.info('fulfil.done', {
       source,
       orderId,
       orderNo: snap.orderNo,
       certificates: snap.certificates.length,
       rendered,
+      attachedPdfs,
       emailStatus: snap.emailStatus,
       ownerEmailStatus: snap.ownerEmailStatus,
       persisted,
       totalMs: since(t0),
     });
 
-    // The customer email is the deliverable, but a snapshot that would not
-    // persist means the portal and every download link are dead. Report failure
-    // so the caller retries — a duplicate email beats an unreachable certificate.
-    if (!persisted) return { ok: false, error: 'snapshot_persist_failed', order: snap };
+    // The store answered and refused the snapshot. The portal and every download
+    // link would be dead, so report failure and let the caller retry — a
+    // duplicate email beats an unreachable certificate.
+    if (persisted === 'failed') return { ok: false, error: 'snapshot_persist_failed', order: snap };
+
+    if (persisted === 'degraded') {
+      // The store is UNREACHABLE, which is a different bet. Retrying cannot fix
+      // it (nothing durable will exist until the database is back), and every
+      // Stripe retry for the next 3 days would re-render and re-send the
+      // receipt. So: if the customer is holding their certificates — email sent,
+      // PDFs attached — call it delivered and stop the retries. The portal links
+      // in that email start working the moment the store returns and the order
+      // is replayed, which is what the owner copy now asks for.
+      const delivered = snap.emailStatus === 'sent' && attachedPdfs > 0;
+      log.error('fulfil.degraded', {
+        source,
+        orderId,
+        orderNo: snap.orderNo,
+        emailStatus: snap.emailStatus,
+        attachedPdfs,
+        certificates: snap.certificates.length,
+        delivered,
+        sessionId: snap.sessionId || null,
+        hint: 'store unreachable: snapshot is instance-local. Replay POST /api/admin/fulfill once KV is back to restore portal + download links.',
+      });
+      // Nothing in the customer's hands: fail so Stripe retries, in case the
+      // store (or the renderer) is working by the next attempt.
+      if (!delivered) return { ok: false, error: 'store_unreachable_undelivered', order: snap };
+      return { ok: true, alreadyFulfilled: false, degraded: true, order: snap };
+    }
 
     return { ok: true, alreadyFulfilled: false, order: snap };
   } finally {
@@ -261,15 +301,46 @@ export async function fulfillOrder(orderId, payment, recovered, opts = {}) {
   }
 }
 
-/** Persist the order snapshot, retried — this is the record that makes the
- *  no-login portal and every certificate download link work. */
+/**
+ * Persist the order snapshot, retried — this is the record that makes the
+ * no-login portal and every certificate download link work.
+ *
+ * @returns {Promise<'durable'|'memory'|'degraded'|'failed'>}
+ *   - `durable`  — in the KV store, across instances. The normal path.
+ *   - `memory`   — no KV configured at all: the documented Stripe-metadata
+ *                  fallback mode (local dev, or a deliberately storeless deploy).
+ *   - `degraded` — KV configured but UNREACHABLE (deleted/down database). The
+ *                  snapshot exists only on this instance; the order is still
+ *                  delivered, and lib/store.js has logged `kv.unreachable`.
+ *   - `failed`   — the store answered and refused. A real failure: retry.
+ */
 async function persistSnapshot(snap, phase) {
   try {
-    await withRetry(() => putSnapshot(snap), { tries: 3, baseDelayMs: 300 });
-    return true;
+    const res = await withRetry(
+      async () => {
+        const r = await putSnapshot(snap);
+        // Retrying a dead host just burns the invocation's time budget — the
+        // store's breaker would short-circuit it anyway. A rejection, though,
+        // can be transient, so that one is worth another go.
+        if (!r.ok && !r.degraded) throw new Error(r.error || r.reason || 'snapshot_write_rejected');
+        return r;
+      },
+      { tries: 3, baseDelayMs: 300 }
+    );
+    if (res.degraded) {
+      log.error('fulfil.snapshot_not_durable', {
+        orderNo: snap.orderNo,
+        orderId: snap.id,
+        phase,
+        reason: res.reason || 'kv_unreachable',
+        error: res.error || null,
+      });
+      return 'degraded';
+    }
+    return res.durable ? 'durable' : 'memory';
   } catch (err) {
     log.error('fulfil.snapshot_persist_failed', { orderNo: snap.orderNo, orderId: snap.id, phase, ...errFields(err) });
-    return false;
+    return 'failed';
   }
 }
 
@@ -425,6 +496,18 @@ async function sendOwnerNotification(snap, certs = []) {
   const attachments = attachPdfs ? await pdfAttachments(certs, snap.orderNo) : [];
   const shipTo = (snap.delivery && snap.delivery.name) || snap.email;
 
+  // The one case where this email is also an incident report: the durable store
+  // was unreachable, so this order exists only here and in Stripe until it is
+  // replayed. Worded against what actually went out, so it never claims an
+  // attachment this email does not carry.
+  const notice = snap.storeDegraded
+    ? `Durable store unreachable when this order was fulfilled — the certificate links and the order portal will not work until it is back${
+        attachments.length ? ' (the PDFs are attached to this email)' : ', and no PDF could be attached here'
+      }. Check /api/health, then replay this order with POST /api/admin/fulfill (session ${
+        snap.sessionId || 'see Stripe'
+      }) to restore the links.`
+    : '';
+
   try {
     const resend = new Resend(ENV.RESEND_API_KEY);
     const res = await withRetry(
@@ -439,6 +522,7 @@ async function sendOwnerNotification(snap, certs = []) {
           html: fulfillmentNotificationHtml(snap, {
             certificates: certLinks,
             portalUrl: `${base}/orders/${snap.id}?token=${snap.token}`,
+            notice,
           }),
           attachments,
         });

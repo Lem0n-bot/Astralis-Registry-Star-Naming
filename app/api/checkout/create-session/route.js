@@ -8,9 +8,9 @@
 import { getStripe } from '../../../lib/stripe';
 import { validateOrderInput, PACKAGES, CURRENCY } from '../../../lib/catalog';
 import { createOrder, attachSession } from '../../../lib/orders';
-import { putOrder as putSnapshot } from '../../../lib/store.js';
+import { putOrder as putSnapshot, pingKv } from '../../../lib/store.js';
 import { packOrder } from '../../../lib/order-codec';
-import { isKvConfigured, isResendConfigured, isWebhookConfigured } from '../../../lib/env.js';
+import { isResendConfigured, isWebhookConfigured } from '../../../lib/env.js';
 import { log, errFields } from '../../../lib/log.js';
 
 export const runtime = 'nodejs';
@@ -58,16 +58,24 @@ export async function POST(req) {
   const origin = originOf(req);
 
   // The order travels with the Stripe session, so whichever instance handles the
-  // webhook can fulfil it even with no shared storage. If it will not fit, KV
-  // must be configured — otherwise the payment would be unrecoverable.
+  // webhook can fulfil it even with no shared storage. If it will not fit, the
+  // store is the ONLY way the webhook will ever see this order — and being
+  // configured is not enough: a deleted Upstash database passes every env check
+  // and answers no commands. Ping it for real before taking the money.
   const packed = packOrder(order);
-  if (!packed && !isKvConfigured()) {
-    log.error('create_session.refused', {
-      reason: 'order_unrecoverable',
-      orderNo: order.orderNo,
-      items: order.items.length,
-    });
-    return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
+  if (!packed) {
+    const kv = await pingKv();
+    if (!kv.reachable) {
+      log.error('create_session.refused', {
+        reason: 'order_unrecoverable',
+        kvConfigured: kv.configured,
+        kvReachable: kv.reachable,
+        kvError: kv.error || null,
+        orderNo: order.orderNo,
+        items: order.items.length,
+      });
+      return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
+    }
   }
 
   // Attach the shipping name / phone / address to the PaymentIntent so every
@@ -125,12 +133,20 @@ export async function POST(req) {
   attachSession(order.id, session.id);
   // Persist a durable copy so fulfilment works even if the webhook lands on a
   // cold/other serverless instance (and so KV-backed deploys survive restarts).
-  let snapshotted = false;
-  try {
-    await putSnapshot(order);
-    snapshotted = true;
-  } catch (err) {
+  // Reports rather than throws; `durable` is false when the store is unreachable
+  // or unconfigured, in which case the session metadata is what carries the
+  // order to the webhook. The .catch is belt-and-braces only.
+  const snap = await putSnapshot(order).catch((err) => {
     log.error('create_session.snapshot_persist_failed', { orderNo: order.orderNo, ...errFields(err) });
+    return { ok: false, durable: false, store: 'none', reason: 'unexpected' };
+  });
+  if (!snap.ok) {
+    log.error('create_session.snapshot_persist_failed', {
+      orderNo: order.orderNo,
+      reason: snap.reason || 'unknown',
+      error: snap.error || null,
+      recoverableFromMetadata: !!packed,
+    });
   }
 
   // The last line logged before the customer leaves for Stripe. Pair it with
@@ -142,7 +158,8 @@ export async function POST(req) {
     sessionId: session.id,
     items: order.items.length,
     totalCents: order.totalCents,
-    snapshotted,
+    snapshotted: !!snap.ok,
+    snapshotStore: snap.store || 'none',
     recoverableFromMetadata: !!packed,
   });
 
