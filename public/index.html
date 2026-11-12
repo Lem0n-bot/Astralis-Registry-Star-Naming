@@ -2201,20 +2201,31 @@ function registerCustomerName(gi,name){
   }
 }
 
-/* Radial star sprite. `core` (0-.34) holds `inner` FLAT out to that radius, so
-   the sprite keeps a solid round disc at its centre instead of fading from the
-   very first pixel - without it a magnified star reads as a see-through smudge.
-   The aura still washes over the core, because the gradient carries on outward
-   from there. 128px (was 64) so the disc edge stays clean when a star is flown
-   right up to and fills a good part of the screen. */
+/* Radial star sprite. `core` holds `inner` FLAT out to that radius, so the
+   sprite keeps a solid round disc at its centre instead of fading from the very
+   first pixel. That matters more than it sounds: these points draw with ADDITIVE
+   blending, so anything bright behind a star bleeds through wherever the sprite
+   is not fully opaque. With a small core the background punched through and left
+   the disc lumpy and see-through; a wide plateau saturates to flat white and the
+   circle reads as solid, whatever is behind it.
+   The aura still washes over and around the core, because the gradient carries
+   on outward from there - the ramp is kept tight so the disc has a clean edge
+   rather than dissolving into the glow. 128px (was 64) so that edge stays clean
+   when a star is flown right up to and fills a good part of the screen. */
 function spriteTexture(inner,outer,core){
   const S=128,H=S/2;
   const c=document.createElement('canvas');c.width=c.height=S;
   const x=c.getContext('2d');
   const g=x.createRadialGradient(H,H,0,H,H,H);
   g.addColorStop(0,inner);
-  if(core>0)g.addColorStop(Math.min(core,.34),inner);
-  g.addColorStop(.35,outer);g.addColorStop(1,'rgba(0,0,0,0)');
+  if(core>0){
+    const k=Math.min(core,.40);
+    g.addColorStop(k,inner);            /* flat, fully opaque disc */
+    g.addColorStop(Math.min(k+.04,.44),outer);  /* tight ramp -> crisp edge */
+  }else{
+    g.addColorStop(.35,outer);
+  }
+  g.addColorStop(1,'rgba(0,0,0,0)');
   x.fillStyle=g;x.fillRect(0,0,S,S);
   const t=new THREE.CanvasTexture(c);return t;
 }
@@ -2383,9 +2394,9 @@ function buildGalaxy(){
     if(si.status==='available'){const a=constReps[si.ci]||(constReps[si.ci]=[]);if(a.length<3)a.push(i);}
   }
   E.constReps=constReps;
-  const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(190,205,255,.55)',.20);
-  const texGold=spriteTexture('rgba(255,238,196,1)','rgba(217,185,108,.3)',.20);
-  const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(242,220,162,.85)',.22);
+  const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(190,205,255,.55)',.30);
+  const texGold=spriteTexture('rgba(255,238,196,1)','rgba(217,185,108,.3)',.30);
+  const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(242,220,162,.85)',.32);
   function makePoints(idx,tex,size,useColor){
     const g=new THREE.BufferGeometry();
     const p=new Float32Array(idx.length*3),c=new Float32Array(idx.length*3);
@@ -2637,7 +2648,7 @@ function buildGalaxy(){
      selected star reads as a solid glowing point instead of a faint dot */
   {
     /* neutral-white sprites; tinted per status (white/featured/gold) on select */
-    const sTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.85)',.24);
+    const sTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.85)',.34);
     E.selMarker=new THREE.Sprite(new THREE.SpriteMaterial({map:sTex,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff}));
     E.selMarker.visible=false;E.scene.add(E.selMarker);
     /* soft halo behind it for extra presence up close */
