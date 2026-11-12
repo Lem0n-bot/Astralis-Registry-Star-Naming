@@ -82,10 +82,16 @@ export function certificateRecord(order, item, itemIndex, certId = newCertId()) 
  */
 export async function mintCertificate(order, item, itemIndex, certId) {
   const record = certificateRecord(order, item, itemIndex, certId);
-  try {
-    await putCert(record);
-  } catch (err) {
-    log.warn('cert.record_persist_failed', { orderNo: order.orderNo, certId: record.certId, ...errFields(err) });
+  // putCert() reports rather than throws (an unreachable store degrades to
+  // memory), so check the result — the .catch is belt-and-braces only.
+  const res = await putCert(record).catch((err) => ({ ok: false, reason: 'unexpected', error: String(err?.message || err) }));
+  if (!res.ok) {
+    log.warn('cert.record_persist_failed', {
+      orderNo: order.orderNo,
+      certId: record.certId,
+      reason: res.reason || 'unknown',
+      error: res.error || null,
+    });
   }
   return record;
 }
