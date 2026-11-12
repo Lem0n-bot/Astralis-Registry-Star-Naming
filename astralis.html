@@ -234,6 +234,7 @@ nav.scrolled{background:rgba(5,7,15,.78);backdrop-filter:blur(18px);-webkit-back
 .exp-actions{display:flex;gap:.7rem;align-items:center}
 .chip{padding:.5rem 1rem;border-radius:999px;border:1px solid var(--glass-brd);background:var(--glass);backdrop-filter:blur(12px);font-size:.78rem;color:var(--mute);display:flex;gap:.45rem;align-items:center;transition:border-color .3s,color .3s}
 button.chip:hover{border-color:var(--gold);color:var(--star)}
+.chip[aria-pressed="true"]{border-color:var(--gold);color:var(--star);background:rgba(217,185,108,.14)}
 .exp-hint{position:absolute;bottom:1.4rem;left:50%;transform:translateX(-50%);font-size:.74rem;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);background:var(--glass);border:1px solid var(--glass-brd);backdrop-filter:blur(12px);padding:.55rem 1.2rem;border-radius:999px;white-space:nowrap;transition:opacity .6s}
 /* ---- explorer search ---- */
 .exp-search{position:absolute;top:1.05rem;left:50%;transform:translateX(-50%);width:min(400px,calc(100vw - 22rem));z-index:8;pointer-events:auto}
@@ -1198,6 +1199,7 @@ footer a:hover{color:var(--gold)}
     <div class="exp-top">
       <div class="exp-brand"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" stroke="#D9B96C" stroke-width="1.2" fill="rgba(217,185,108,.15)"/></svg>Astralis Registry</div>
       <div class="exp-actions">
+        <button class="chip" id="hideTakenBtn" aria-pressed="false" title="Hide every star that is already named or reserved">◎ Hide named</button>
         <button class="chip" id="soundBtn" aria-pressed="false">♪ Ambience off</button>
         <button class="chip" id="expClose">✕ &nbsp;Exit</button>
       </div>
@@ -2199,11 +2201,21 @@ function registerCustomerName(gi,name){
   }
 }
 
-function spriteTexture(inner,outer){
-  const c=document.createElement('canvas');c.width=c.height=64;
-  const g=c.getContext('2d').createRadialGradient(32,32,0,32,32,32);
-  g.addColorStop(0,inner);g.addColorStop(.35,outer);g.addColorStop(1,'rgba(0,0,0,0)');
-  const x=c.getContext('2d');x.fillStyle=g;x.fillRect(0,0,64,64);
+/* Radial star sprite. `core` (0-.34) holds `inner` FLAT out to that radius, so
+   the sprite keeps a solid round disc at its centre instead of fading from the
+   very first pixel - without it a magnified star reads as a see-through smudge.
+   The aura still washes over the core, because the gradient carries on outward
+   from there. 128px (was 64) so the disc edge stays clean when a star is flown
+   right up to and fills a good part of the screen. */
+function spriteTexture(inner,outer,core){
+  const S=128,H=S/2;
+  const c=document.createElement('canvas');c.width=c.height=S;
+  const x=c.getContext('2d');
+  const g=x.createRadialGradient(H,H,0,H,H,H);
+  g.addColorStop(0,inner);
+  if(core>0)g.addColorStop(Math.min(core,.34),inner);
+  g.addColorStop(.35,outer);g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.fillRect(0,0,S,S);
   const t=new THREE.CanvasTexture(c);return t;
 }
 function nebulaTexture(hue){
@@ -2371,9 +2383,9 @@ function buildGalaxy(){
     if(si.status==='available'){const a=constReps[si.ci]||(constReps[si.ci]=[]);if(a.length<3)a.push(i);}
   }
   E.constReps=constReps;
-  const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(190,205,255,.55)');
-  const texGold=spriteTexture('rgba(255,238,196,1)','rgba(217,185,108,.3)');
-  const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(242,220,162,.85)');
+  const texSoft=spriteTexture('rgba(255,255,255,1)','rgba(190,205,255,.55)',.20);
+  const texGold=spriteTexture('rgba(255,238,196,1)','rgba(217,185,108,.3)',.20);
+  const texFeat=spriteTexture('rgba(255,255,255,1)','rgba(242,220,162,.85)',.22);
   function makePoints(idx,tex,size,useColor){
     const g=new THREE.BufferGeometry();
     const p=new Float32Array(idx.length*3),c=new Float32Array(idx.length*3);
@@ -2381,6 +2393,10 @@ function buildGalaxy(){
       c[j*3]=col[gi*3];c[j*3+1]=col[gi*3+1];c[j*3+2]=col[gi*3+2];});
     g.setAttribute('position',new THREE.BufferAttribute(p,3));
     if(useColor)g.setAttribute('color',new THREE.BufferAttribute(c,3));
+    /* 1 = already named / reserved. Filled in once naming is done (see
+       refreshTakenFlags) and read by the vertex shader, so the HUD toggle hides
+       those stars without rebuilding geometry or adding a draw call. */
+    g.setAttribute('aTaken',new THREE.BufferAttribute(new Float32Array(idx.length),1));
     const m=new THREE.PointsMaterial({size,map:tex,transparent:true,depthWrite:false,
       blending:THREE.AdditiveBlending,vertexColors:useColor,color:useColor?0xffffff:0xf2dca2,
       sizeAttenuation:true,opacity:.95});
@@ -2399,15 +2415,23 @@ function buildGalaxy(){
      max ~1-3px; strength eases in/out so stars spring back when the cursor leaves. */
   E.grav={uRayO:{value:new THREE.Vector3()},uRayD:{value:new THREE.Vector3(0,0,-1)},
           uActive:{value:0},uR:{value:0.10},uPull:{value:0.0026}};
+  /* shared by all three clouds, flipped by the "Hide named" chip */
+  E.uHideTaken={value:0};
   const applyGravity=mat=>{
     mat.onBeforeCompile=sh=>{
       sh.uniforms.uRayO=E.grav.uRayO;sh.uniforms.uRayD=E.grav.uRayD;
       sh.uniforms.uActive=E.grav.uActive;sh.uniforms.uR=E.grav.uR;sh.uniforms.uPull=E.grav.uPull;
+      sh.uniforms.uHideTaken=E.uHideTaken;
       /* Pull every star toward the cursor RAY by its perpendicular (screen-space)
          distance, with the offset scaled by depth so the displacement is a
          constant ~1-3px everywhere — uniform across the whole field, no matter
          how near or far the star sits. Smooth smoothstep falloff. */
-      sh.vertexShader='uniform vec3 uRayO;uniform vec3 uRayD;uniform float uActive;uniform float uR;uniform float uPull;\n'
+      /* Hide already-named stars by collapsing the point and pushing it outside
+         clip space - cheaper and far simpler than rebuilding the cloud, and the
+         CPU position buffers stay intact so raycasting still maps 1:1. */
+      sh.vertexShader=sh.vertexShader.replace('#include <fog_vertex>',
+        'if(uHideTaken>0.5&&aTaken>0.5){gl_PointSize=0.0;gl_Position=vec4(2.0,2.0,2.0,1.0);}\n'+'\n\t#include <fog_vertex>');
+      sh.vertexShader='uniform vec3 uRayO;uniform vec3 uRayD;uniform float uActive;uniform float uR;uniform float uPull;uniform float uHideTaken;attribute float aTaken;\n'
         +sh.vertexShader.replace('#include <begin_vertex>',
           '#include <begin_vertex>\n'
           +'vec3 gRel=position-uRayO;float gT=dot(gRel,uRayD);'
@@ -2484,6 +2508,23 @@ function buildGalaxy(){
       E.names[gi]=s.n;E.famousStars[gi]=true;});
   }
   E.searchList=Object.keys(E.names).map(giStr=>{const gi=+giStr,name=E.names[gi];return{gi,name,lname:name.toLowerCase()};});
+
+  /* Tell the shader which points are "taken" so the HUD toggle can hide them.
+     Every star in the reserved cloud is taken by definition; in the other two it
+     is the named ones (registry placements, famous stars, and anything the
+     visitor has named themselves). Cheap enough to re-run whenever names
+     change - it is one array write per star, no geometry rebuild. */
+  E.refreshTakenFlags=()=>{
+    for(const key in E.groups){
+      const map=E.indexMaps[key],at=E.groups[key].geometry.getAttribute('aTaken');
+      if(!map||!at)continue;
+      const allTaken=(key==='reserved');
+      for(let j=0;j<map.length;j++)at.array[j]=(allTaken||starName(map[j]))?1:0;
+      at.needsUpdate=true;
+    }
+  };
+  E.refreshTakenFlags();
+  if(E.hideTaken)setHideTaken(true);   /* survive a reopen of the explorer */
 
   /* detail layer: faint extra stars revealed when zoomed in */
   {
@@ -2596,7 +2637,7 @@ function buildGalaxy(){
      selected star reads as a solid glowing point instead of a faint dot */
   {
     /* neutral-white sprites; tinted per status (white/featured/gold) on select */
-    const sTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.85)');
+    const sTex=spriteTexture('rgba(255,255,255,1)','rgba(255,255,255,.85)',.24);
     E.selMarker=new THREE.Sprite(new THREE.SpriteMaterial({map:sTex,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff}));
     E.selMarker.visible=false;E.scene.add(E.selMarker);
     /* soft halo behind it for extra presence up close */
@@ -2720,7 +2761,15 @@ function doHover(){
   E.raycaster.params.Points.threshold=Math.max(.8,E.sph.r*0.012);
   let best=null,bestKey=null;
   for(const key of['featured','available','reserved']){
-    const hit=E.raycaster.intersectObject(E.groups[key],false)[0];
+    if(E.hideTaken&&key==='reserved')continue;   /* that whole cloud is hidden */
+    /* Take the nearest hit that is actually visible: a hidden star must not be
+       hoverable or clickable, so skip past it to whatever is behind it. */
+    const hits=E.raycaster.intersectObject(E.groups[key],false);
+    let hit=null;
+    for(const h of hits){
+      if(E.hideTaken&&starName(E.indexMaps[key][h.index]))continue;
+      hit=h;break;
+    }
     if(hit&&(!best||hit.distanceToRay<best.distanceToRay)){best=hit;bestKey=key;}
   }
   const tip=$('#starTip');
@@ -3433,7 +3482,9 @@ $$('[data-launch]').forEach(b=>b.addEventListener('click',openExplorerCinematic)
   });
   results.addEventListener('click',e=>{
     const b=e.target.closest('.es-item');if(!b)return;
-    const gi=+b.dataset.gi;close();input.blur();selectStar(gi);
+    const gi=+b.dataset.gi;close();input.blur();
+    if(EXP.hideTaken)setHideTaken(false);   /* every search hit IS a named star */
+    selectStar(gi);
   });
   clearBtn.addEventListener('click',()=>{input.value='';clearBtn.hidden=true;close();input.focus();});
   input.addEventListener('keydown',e=>{
@@ -3496,6 +3547,22 @@ function setAmbience(on){
   b.setAttribute('aria-pressed',on);
 }
 $('#soundBtn').addEventListener('click',()=>setAmbience(!(EXP.audio&&EXP.audio.on)));
+
+/* ---------- hide already-named stars ----------
+   Flips one shader uniform, so the whole field repaints without touching
+   geometry, the draw-call budget or the CPU position buffers that raycasting
+   reads. The reserved cloud is skipped entirely while hidden, which also drops
+   it from the render. */
+function setHideTaken(on){
+  const E=EXP;
+  E.hideTaken=!!on;
+  if(E.uHideTaken)E.uHideTaken.value=on?1:0;
+  if(E.groups&&E.groups.reserved)E.groups.reserved.visible=!on;
+  const b=$('#hideTakenBtn');
+  if(b){b.textContent=on?'◎ Show named':'◎ Hide named';b.setAttribute('aria-pressed',on?'true':'false');}
+  if(on&&E.hover>=0&&starName(E.hover)){E.hover=-1;$('#starTip').classList.remove('on');}
+}
+$('#hideTakenBtn').addEventListener('click',()=>setHideTaken(!EXP.hideTaken));
 
 /* ---------- 3D shooting stars ---------- */
 /* Scene-space meteors: real objects in the galaxy, so panning, rotating
