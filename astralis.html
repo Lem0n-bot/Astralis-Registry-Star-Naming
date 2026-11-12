@@ -2466,6 +2466,10 @@ function buildGalaxy(){
     const gSau=place('Trinh Thi Sau',-140,10,-60);
     nextTo('Nguyen Nam Son',gSau);
     nextTo('Nguyen Anh Tuan',E.choAnGi);
+    /* AST-416760, Cassiopeia (G2 V, mag 4.71) — certificate issued 2026-11-12.
+       Coordinates are that star's own position, so near() resolves to it exactly.
+       Appended last so it can never displace a placement above it. */
+    place('Ivona Seer Ivanova',-73.3913,4.7356,-84.3062);
   }
   /* famous real stars — the notable stars of each major constellation, placed as
      registry landmarks: searchable, but named => isTaken() true => not for sale */
