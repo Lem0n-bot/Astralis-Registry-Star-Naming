@@ -41,18 +41,28 @@ function summaryRow(it) {
 }
 
 // One certificate card: framed preview image + a gold "Download PDF" button.
+// Both are optional — a certificate issued by hand has no hosted preview and no
+// download route, only the attachment, so the card degrades to a plain label
+// rather than rendering a broken image and a dead link.
 function certCard(c) {
+  const preview = c.pngUrl
+    ? `
+        <td width="116" valign="top" style="padding:12px;">
+          <img src="${esc(c.pngUrl)}" width="100" alt="Certificate for ${esc(c.name)}" style="display:block;width:100px;height:auto;border-radius:8px;border:1px solid rgba(217,185,108,0.3);" />
+        </td>`
+    : '';
+  const button = c.pdfUrl
+    ? `
+          <a href="${esc(c.pdfUrl)}" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;color:#1a1405;text-decoration:none;background:linear-gradient(135deg,#F2DCA2,#D9B96C);padding:9px 16px;border-radius:999px;">Download certificate (PDF)</a>`
+    : `
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#C9D0E6;">Attached to this email as a high-resolution PDF.</div>`;
   return `
   <tr><td style="padding:10px 0;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:rgba(255,255,255,0.03);border:1px solid rgba(217,185,108,0.22);border-radius:14px;">
-      <tr>
-        <td width="116" valign="top" style="padding:12px;">
-          <img src="${esc(c.pngUrl)}" width="100" alt="Certificate for ${esc(c.name)}" style="display:block;width:100px;height:auto;border-radius:8px;border:1px solid rgba(217,185,108,0.3);" />
-        </td>
-        <td valign="middle" style="padding:12px 14px 12px 0;">
+      <tr>${preview}
+        <td valign="middle" style="padding:12px 14px 12px ${preview ? '0' : '14px'};">
           <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:19px;color:#F2ECDD;">${esc(c.name)}</div>
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;color:#99A2C4;margin:3px 0 10px;">Certificate ${esc(c.certId)}</div>
-          <a href="${esc(c.pdfUrl)}" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;color:#1a1405;text-decoration:none;background:linear-gradient(135deg,#F2DCA2,#D9B96C);padding:9px 16px;border-radius:999px;">Download certificate (PDF)</a>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;color:#99A2C4;margin:3px 0 10px;">Certificate ${esc(c.certId)}</div>${button}
         </td>
       </tr>
     </table>
@@ -203,10 +213,17 @@ export function fulfillmentNotificationHtml(order, opts = {}) {
 
 /**
  * @param {object} order
- * @param {{certificates?:Array<{certId,name,pngUrl,pdfUrl}>, portalUrl?:string}} [opts]
+ * @param {{certificates?:Array<{certId,name,pngUrl,pdfUrl}>, portalUrl?:string,
+ *   certViewUrl?:string, manual?:boolean}} [opts]
+ *   `manual` is for a certificate issued by hand from /admin/certificate: there
+ *   is no payment, no order number, no delivery address and no order portal, so
+ *   the receipt blocks are dropped rather than printed with empty or zero
+ *   values. Everything else — branding, layout, the attached PDF — is identical,
+ *   because this is the email a customer already recognises.
  */
 export function orderConfirmationHtml(order, opts = {}) {
   const certificates = opts.certificates || [];
+  const manual = !!opts.manual;
   const portalUrl = opts.portalUrl || '';
   const viewUrl = opts.certViewUrl || portalUrl;   // client-rendered viewer (falls back to portal)
   const name = greetingName(order.email);
@@ -233,11 +250,19 @@ export function orderConfirmationHtml(order, opts = {}) {
       <tr><td align="center" style="padding:18px 32px 2px 32px;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;color:#F2ECDD;">${plural ? 'Their stars are named.' : 'Their star is named.'}</td></tr>
       <tr><td align="left" style="padding:12px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#C9D0E6;">
         Dear ${esc(name)},<br><br>
-        Thank you for your support. Your payment was successful and your order is confirmed. Your personalised certificate${plural ? 's are' : ' is'} attached to this email as a high-resolution PDF, and you can download ${plural ? 'them' : 'it'} any time below.
+        ${
+          manual
+            ? `Your personalised certificate${plural ? 's are' : ' is'} attached to this email as a high-resolution PDF, ready to print or keep.`
+            : `Thank you for your support. Your payment was successful and your order is confirmed. Your personalised certificate${plural ? 's are' : ' is'} attached to this email as a high-resolution PDF, and you can download ${plural ? 'them' : 'it'} any time below.`
+        }
       </td></tr>
-      <tr><td align="left" style="padding:10px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#99A2C4;">
+      ${
+        manual || !order.orderNo
+          ? ''
+          : `<tr><td align="left" style="padding:10px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#99A2C4;">
         Order <b style="color:#D9B96C;">${esc(order.orderNo)}</b>
-      </td></tr>
+      </td></tr>`
+      }
 
       ${certificates.length ? `
       <tr><td style="padding:6px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#99A2C4;">Your certificate${plural ? 's' : ''}</td></tr>
@@ -250,7 +275,10 @@ export function orderConfirmationHtml(order, opts = {}) {
         <a href="${esc(viewUrl)}" style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#1a1405;text-decoration:none;background:linear-gradient(135deg,#F2DCA2,#D9B96C);padding:13px 30px;border-radius:999px;">View your certificate${plural ? 's' : ''}</a>
       </td></tr>` : ''}
 
-      <tr><td style="padding:6px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#99A2C4;">Order summary</td></tr>
+      ${
+        manual
+          ? ''
+          : `<tr><td style="padding:6px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#99A2C4;">Order summary</td></tr>
       <tr><td style="padding:4px 32px 8px 32px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           ${order.items.map(summaryRow).join('')}
@@ -269,9 +297,14 @@ export function orderConfirmationHtml(order, opts = {}) {
             <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#C9D0E6;margin-top:5px;">${esc(est.body)}</div>
           </td></tr>
         </table>
-      </td></tr>
+      </td></tr>`
+      }
       <tr><td align="center" style="padding:0 32px 26px 32px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#6E7799;">
-        Keep this email — your certificate link${plural ? 's stay' : ' stays'} live in the registry.
+        ${
+          manual
+            ? `Keep this email — the attached PDF is your certificate.`
+            : `Keep this email — your certificate link${plural ? 's stay' : ' stays'} live in the registry.`
+        }
       </td></tr>
       <tr><td align="center" style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.06);font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;color:#6E7799;">
         Astralis Celestial Registry &middot; astralisregistry.com
