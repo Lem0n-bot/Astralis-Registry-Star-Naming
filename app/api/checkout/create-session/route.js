@@ -1,9 +1,11 @@
 /**
  * POST /api/checkout/create-session
  * Body: { items: CartItem[], email: string, delivery: Delivery }
- * Validates server-side, creates a pending order, opens a Stripe Checkout
- * Session (hosted), and returns { url } for the browser to redirect to.
- * Prices are taken from the server catalogue — the client cannot set amounts.
+ * Validates server-side, re-checks that the email was verified, creates a
+ * pending order, opens a Stripe Checkout Session (hosted), and returns { url }
+ * for the browser to redirect to.
+ * Prices are taken from the server catalogue — the client cannot set amounts,
+ * and the browser's own "verified" flag is not trusted either.
  */
 import { getStripe } from '../../../lib/stripe';
 import { validateOrderInput, PACKAGES, CURRENCY } from '../../../lib/catalog';
@@ -11,10 +13,14 @@ import { createOrder, attachSession } from '../../../lib/orders';
 import { putOrder as putSnapshot, pingKv } from '../../../lib/store.js';
 import { packOrder } from '../../../lib/order-codec';
 import { isResendConfigured, isWebhookConfigured } from '../../../lib/env.js';
+import { isVerified } from '../../verify-email/store.js';
 import { log, errFields } from '../../../lib/log.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// A store command on this path must never be answered from a framework cache —
+// the verification re-check below reads the store (see lib/store.js on probes).
+export const fetchCache = 'force-no-store';
 
 function originOf(req) {
   const o = req.headers.get('origin');
@@ -52,6 +58,23 @@ export async function POST(req) {
   if (!isWebhookConfigured() && process.env.NODE_ENV === 'production') {
     log.error('create_session.refused', { reason: 'webhook_not_configured' });
     return Response.json({ error: 'fulfilment_not_configured' }, { status: 503 });
+  }
+
+  // Re-check the email verification server-side. The browser's emailVerified
+  // flag gates a button, nothing more: this endpoint is public, so without this
+  // an order could be placed — and certificates delivered — to an address the
+  // buyer never proved they control. The marker is read, not consumed, so a
+  // failed Stripe redirect or a back-button retry does not re-run verification.
+  const verified = await isVerified(v.order.email);
+  if (!verified.ok) {
+    if (verified.reason === 'store_unavailable') {
+      // We cannot tell a verified buyer from an unverified one. Refusing is the
+      // only safe answer, and it is the same shape of refusal as the checks above.
+      log.error('create_session.refused', { reason: 'verification_unavailable', email: v.order.email });
+      return Response.json({ error: 'verification_unavailable' }, { status: 503 });
+    }
+    log.warn('create_session.refused', { reason: 'email_not_verified', email: v.order.email });
+    return Response.json({ error: 'email_not_verified' }, { status: 403 });
   }
 
   const order = createOrder(v.order);

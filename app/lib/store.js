@@ -40,6 +40,7 @@ const mem =
     blobs: new Map(), // `${certId}:${format}` -> Buffer
     locks: new Map(), // orderId -> expiry timestamp
     rates: new Map(), // rate-limit key -> { n, until }
+    short: new Map(), // short-lived key -> { value, expires }
   });
 
 /** Breaker + last-ping state. Kept on the shared object so it survives a dev
@@ -166,7 +167,12 @@ function noteUnreachable(op, err) {
   log.error('kv.unreachable', {
     op,
     breakerMs: KV_BREAKER_MS,
-    hint: 'snapshots degrade to memory; fulfilment rebuilds the order from Stripe metadata',
+    // Op-specific, because the consequence differs: an order snapshot degrades
+    // and the order is still delivered, whereas email verification has nowhere
+    // to degrade to and refuses (see the short-lived helpers below).
+    hint: op.startsWith('short_')
+      ? 'email verification cannot degrade to memory; the checkout funnel refuses while this lasts'
+      : 'snapshots degrade to memory; fulfilment rebuilds the order from Stripe metadata',
     ...errSafe(err),
   });
 }
@@ -209,6 +215,11 @@ const breakerOpenWrite = () =>
     error: kvState.lastError ? `breaker_open; last error: ${kvState.lastError}` : 'breaker_open',
   });
 
+/** There was no client to call. No store configured at all is the documented
+ *  metadata-fallback / local-dev mode, not a failure; configured-but-breaker-open
+ *  means the store is down, which is. */
+const noClientWrite = () => (isKvConfigured() ? breakerOpenWrite() : wrote('memory'));
+
 /**
  * Persist an order snapshot.
  * @returns {Promise<{ok:boolean, durable:boolean, degraded:boolean, store:string, reason?:string}>}
@@ -220,9 +231,7 @@ export async function putOrder(order) {
   const k = await kvClient();
   if (!k) {
     mem.orders.set(order.id, order);
-    // No KV configured at all is the documented metadata-fallback mode, not a
-    // failure. Configured-but-breaker-open means the store is down: degraded.
-    return isKvConfigured() ? breakerOpenWrite() : wrote('memory');
+    return noClientWrite();
   }
   const r = await kvOp('order_write', () => k.set(OKEY(order.id), order));
   if (r.ok) return wrote('kv');
@@ -244,7 +253,7 @@ export async function putCert(cert) {
   const k = await kvClient();
   if (!k) {
     mem.certs.set(cert.certId, cert);
-    return isKvConfigured() ? breakerOpenWrite() : wrote('memory');
+    return noClientWrite();
   }
   const r = await kvOp('cert_write', () => k.set(CKEY(cert.certId), cert));
   if (r.ok) return wrote('kv');
@@ -352,6 +361,146 @@ export async function incrWithTtl(key, ttlSec) {
   }
   cur.n += 1;
   return cur.n;
+}
+
+/* ── Short-lived keyed records ───────────────────────────────────────────────
+ *
+ * TTL-bounded primitives for email verification (app/api/verify-email/store.js).
+ * They differ from everything above in one way that matters: they must NOT
+ * quietly degrade to per-instance memory in production. A code written by the
+ * instance that handled `send-code` is invisible to the instance that handles
+ * `check-code`, and a "verified" marker invisible to `create-session` turns a
+ * customer away at the last button. So these report where the answer came from
+ * and their callers refuse the flow when the store is configured but silent.
+ *
+ * With no store configured at all (local dev, one process) memory IS the store,
+ * so a read is `ok:true, durable:false` and the flow proceeds.
+ */
+
+const SKEY = (key) => `astralis:s:${key}`;
+
+/** Memory fallback for the above. Tolerated as missing on an object an older
+ *  build created, like kvState. Expiry is explicit, with lazy eviction. */
+const memShort = () => (mem.short ||= new Map());
+
+function memShortGet(key) {
+  const m = memShort();
+  const rec = m.get(key);
+  if (!rec) return undefined;
+  if (rec.expires <= Date.now()) {
+    m.delete(key);
+    return undefined;
+  }
+  return rec;
+}
+
+/**
+ * Write a short-lived record. `onlyIfAbsent` makes it an atomic claim (SET NX),
+ * which is how the resend cooldown is enforced: a read-then-write check lets two
+ * concurrent requests both pass and send two codes.
+ * @returns {Promise<{ok:boolean, durable:boolean, store:string, set:boolean}>}
+ *   `set:false` with `ok:true` means the key already existed — a refusal, not a
+ *   failure. `ok:false` means the store was asked and did not answer.
+ */
+export async function putShortLived(key, value, ttlSec, { onlyIfAbsent = false } = {}) {
+  const k = await kvClient();
+  if (!k) {
+    if (isKvConfigured()) return { ...breakerOpenWrite(), set: false };
+    if (onlyIfAbsent && memShortGet(key)) return { ...wrote('memory'), set: false };
+    memShort().set(key, { value, expires: Date.now() + ttlSec * 1000 });
+    return { ...wrote('memory'), set: true };
+  }
+  const opts = onlyIfAbsent ? { nx: true, ex: ttlSec } : { ex: ttlSec };
+  const r = await kvOp('short_write', () => k.set(SKEY(key), value, opts));
+  if (!r.ok) return { ...writeFailed(r), set: false };
+  // Under NX a null reply means the key was already there, which is the whole
+  // point of the claim — so it is a successful command with `set:false`.
+  return { ...wrote('kv'), set: !onlyIfAbsent || r.value === 'OK' || r.value === true };
+}
+
+/**
+ * Read a short-lived record.
+ * @returns {Promise<{ok:boolean, durable:boolean, store:string, value:any}>}
+ *   `ok` means the answer is trustworthy, so a caller can tell "no such key"
+ *   (`ok:true, value:null`) from "there was nobody to ask" (`ok:false`).
+ */
+export async function getShortLived(key) {
+  const k = await kvClient();
+  if (!k) {
+    const rec = memShortGet(key);
+    const configured = isKvConfigured();
+    return {
+      ok: !configured,
+      durable: false,
+      store: 'memory',
+      ...(configured ? { reason: 'kv_unreachable', error: kvState.lastError || 'breaker_open' } : {}),
+      value: rec ? rec.value : null,
+    };
+  }
+  const r = await kvOp('short_read', () => k.get(SKEY(key)));
+  if (!r.ok) {
+    return {
+      ok: false,
+      durable: false,
+      store: 'memory',
+      reason: r.unreachable ? 'kv_unreachable' : 'kv_rejected',
+      error: r.error,
+      value: null,
+    };
+  }
+  return { ok: true, durable: true, store: 'kv', value: r.value ?? null };
+}
+
+/** Drop a short-lived record. Best-effort: a key that outlives its delete still
+ *  expires on its own, and the caller has already made its decision. */
+export async function delShortLived(key) {
+  const k = await kvClient();
+  if (!k) {
+    memShort().delete(key);
+    return;
+  }
+  const r = await kvOp('short_del', () => k.del(SKEY(key)));
+  // The key is hashed, but never log it anyway — it identifies one buyer.
+  if (!r.ok) log.warn('store.short_del_failed', { error: r.error });
+}
+
+/**
+ * Atomically increment a short-lived counter; returns the count after this hit.
+ *
+ * Unlike incrWithTtl() this does NOT fail open, and returns null instead: that
+ * one guards an admin login where locking the owner out is the worse outcome,
+ * whereas this one counts verification attempts, and a counter that answers "1"
+ * through an outage hands out unlimited guesses at a 6-digit code.
+ * @returns {Promise<number|null>} null when the store did not answer.
+ */
+export async function bumpShortLived(key, ttlSec) {
+  const k = await kvClient();
+  if (k) {
+    const r = await kvOp('short_incr', () => k.incr(SKEY(key)));
+    if (!r.ok) return null;
+    // Window set on the first hit only, so it is fixed from the first attempt
+    // rather than sliding forward with every guess.
+    if (r.value === 1) await kvOp('short_expire', () => k.expire(SKEY(key), ttlSec));
+    return r.value;
+  }
+  if (isKvConfigured()) return null;
+  const rec = memShortGet(key);
+  const n = (rec ? Number(rec.value) || 0 : 0) + 1;
+  memShort().set(key, { value: n, expires: rec ? rec.expires : Date.now() + ttlSec * 1000 });
+  return n;
+}
+
+/** Seconds left on a short-lived key, or null when that is not knowable. Used to
+ *  tell the browser how long a resend cooldown has left to run. */
+export async function ttlShortLived(key) {
+  const k = await kvClient();
+  if (!k) {
+    const rec = memShortGet(key);
+    return rec ? Math.max(1, Math.ceil((rec.expires - Date.now()) / 1000)) : null;
+  }
+  const r = await kvOp('short_ttl', () => k.ttl(SKEY(key)));
+  if (!r.ok || typeof r.value !== 'number' || r.value < 0) return null;
+  return r.value;
 }
 
 export async function releaseLock(orderId) {

@@ -15,6 +15,11 @@
  * prefix or a length. Safe to call publicly: the ping is memoised per instance,
  * so this cannot be used to generate load against the store. `ready:false` is
  * the signal that matters.
+ *
+ * Note `checks.emailVerification`: since verification codes live in the shared
+ * store and create-session re-reads the result, an unreachable store stops NEW
+ * sales (orders already paid for still fulfil from Stripe metadata). That makes
+ * the store load-bearing for the funnel, not just for the order portal.
  */
 import {
   ENV,
@@ -25,6 +30,7 @@ import {
   isAdminApiConfigured,
 } from '../../lib/env.js';
 import { pingKv } from '../../lib/store.js';
+import { isVerificationStoreReady } from '../verify-email/store.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -59,9 +65,15 @@ export async function GET() {
     // which would invalidate every previously issued link on change.
     orderTokenSecret: !!ENV.ORDER_TOKEN_SECRET,
     siteUrl: !!ENV.SITE_URL,
-    // Optional, and TRUE ONLY IF THE STORE ANSWERS. Orders also survive via
-    // Stripe session metadata (lib/order-codec), so this is degraded, not down.
+    // TRUE ONLY IF THE STORE ANSWERS. Already-paid orders survive without it via
+    // Stripe session metadata (lib/order-codec) — but a NEW order cannot be
+    // taken, because email verification has nowhere else to live.
     kv: kv.configured && kv.reachable,
+    // Can the checkout funnel verify a buyer's email? Codes and the "verified"
+    // marker live in the shared store (app/api/verify-email/store.js) and
+    // create-session re-reads the marker, so without an answering store the
+    // funnel refuses rather than charge an unverified address.
+    emailVerification: isVerificationStoreReady() && (!isKvConfigured() || kv.reachable),
     // Keeps the free Upstash database from being deleted for inactivity.
     keepaliveCron: (process.env.CRON_SECRET || '').length >= 16,
     // Optional: enables the manual fulfilment replay at /api/admin/fulfill.
@@ -71,13 +83,21 @@ export async function GET() {
   // Everything an order needs to be taken, fulfilled and acknowledged. siteUrl,
   // resendFrom and ownerNotifyEmail are deliberately NOT required — each has a
   // working code default, so demanding them would report a healthy site as down.
-  // KV is not required either: fulfilment rebuilds the order from Stripe
-  // metadata, renders and emails without it. It is a warning, not an outage.
-  const required = ['stripeSecret', 'stripeWebhookSecret', 'resend', 'orderTokenSecret'];
+  //
+  // `kv` itself is still NOT required: fulfilment rebuilds an order from Stripe
+  // metadata, renders and emails without it. `emailVerification` IS, because it
+  // is the one thing with no fallback — a code in per-instance memory is
+  // invisible to the instance that checks it — so a store outage stops new sales
+  // even though orders already paid for still complete.
+  const required = ['stripeSecret', 'stripeWebhookSecret', 'resend', 'orderTokenSecret', 'emailVerification'];
   const missing = required.filter((k) => !checks[k]);
 
   const warnings = [];
   if (kv.configured && !kv.reachable) warnings.push('kv_unreachable');
+  // Not framed as an email-verification problem: outside production memory is
+  // legitimately the store, and `checks.emailVerification` already carries the
+  // consequence when it is not.
+  if (!kv.configured) warnings.push('store_unconfigured');
   if (kv.configured && !checks.keepaliveCron) warnings.push('keepalive_cron_unconfigured');
 
   return Response.json(
@@ -107,6 +127,13 @@ export async function GET() {
         : isKvConfigured()
           ? 'stripe-metadata-fallback (kv unreachable)'
           : 'stripe-metadata-fallback',
+      // Why a buyer might be refused at checkout even while Stripe is healthy.
+      verification: {
+        storeReady: checks.emailVerification,
+        codeTtlSec: 600,
+        resendCooldownSec: 60,
+        maxAttempts: 5,
+      },
       // Which path fulfils an order, and the render budget it works inside.
       // Certificate rendering is deliberately bounded so the confirmation email
       // always goes out within the function's maxDuration.

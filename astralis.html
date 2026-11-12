@@ -4133,6 +4133,8 @@ const PAY_ERRORS={
   invalid_postcode:'Please enter a valid 4-digit postcode.',
   missing_phone:'Please add a phone number.',
   invalid_package:'One of your items is no longer available.',
+  email_not_verified:'Please verify your email address before paying — go back and enter the 6-digit code we sent you.',
+  verification_unavailable:'We couldn’t confirm your email verification just now. Please try again in a moment.',
   stripe_not_configured:'Payments are not available right now. Please try again later.',
   fulfilment_not_configured:'Orders are paused for maintenance so we don’t take a payment we can’t deliver. Please email help.astralis@gmail.com and we’ll sort it out.',
   stripe_error:'We couldn’t start checkout. Please try again.'
@@ -4161,13 +4163,22 @@ $('#co-pay').addEventListener('click',async()=>{
 
 /* =================================================================
    EMAIL VERIFICATION (checkout step 2) — "Send code" + 6-digit code.
-   Server-side is the source of truth (app/api/verify-email/*); the
-   emailVerified flag here is only a UX gate before Continue to Payment.
+   The server is the source of truth: codes live in the KV store
+   (app/api/verify-email/*) and /api/checkout/create-session re-checks
+   the verification before it opens a Stripe session. The flag below
+   only decides whether this button is clickable.
    ================================================================= */
 (function(){
   const emEl=$('#co-em'),sendBtn=$('#ev-send'),codeEl=$('#co-code'),
         statusEl=$('#ev-status'),checkEl=$('#ev-check'),nextBtn=$('#co-next2');
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const EV_COOLDOWN=60;   /* must match RESEND_COOLDOWN_SEC server-side */
+  /* 503s: the code path is configured off, or the store isn't answering. */
+  const SEND_ERRORS={
+    not_configured:'Email verification is unavailable right now. Please email help.astralis@gmail.com and we’ll help you order.',
+    verification_unavailable:'We couldn’t start verification just now. Please try again in a moment.',
+    invalid_email:'Please enter a valid email address.'
+  };
   let cooldown=null;
   const setStatus=(msg,kind)=>{statusEl.textContent=msg||'';statusEl.className='ev-status'+(kind?' '+kind:'');};
   const validEmail=()=>EMAIL_RE.test(emEl.value.trim());
@@ -4182,7 +4193,7 @@ $('#co-pay').addEventListener('click',async()=>{
     let left=secs;sendBtn.disabled=true;
     const tick=()=>{
       if(left<=0){clearInterval(cooldown);cooldown=null;sendBtn.textContent='Send code';refreshSend();return;}
-      sendBtn.textContent='Resend in 0:'+String(left).padStart(2,'0');left--;
+      sendBtn.textContent='Resend in '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');left--;
     };
     tick();cooldown=setInterval(tick,1000);
   }
@@ -4202,11 +4213,17 @@ $('#co-pay').addEventListener('click',async()=>{
     try{
       const r=await fetch('/api/verify-email/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
       const data=await r.json().catch(()=>({}));
-      if(r.status===429){setStatus('Please wait '+(data.retryAfter||15)+'s before requesting another code.','err');startCooldown(data.retryAfter||15);return;}
-      if(!r.ok){setStatus('Could not send a code. Please check the address and try again.','err');refreshSend();return;}
+      if(r.status===429){
+        const wait=data.retryAfter||EV_COOLDOWN;
+        setStatus('Please wait '+wait+'s before requesting another code.','err');startCooldown(wait);return;
+      }
+      if(!r.ok){
+        setStatus(SEND_ERRORS[data.error]||'Could not send a code. Please check the address and try again.','err');
+        refreshSend();return;
+      }
       codeEl.disabled=false;codeEl.value='';codeEl.focus();
-      setStatus('Code sent to '+email+'. Check your inbox.');
-      startCooldown(15);
+      setStatus('Code sent to '+email+'. Check your inbox — it expires in 10 minutes.');
+      startCooldown(data.resendIn||EV_COOLDOWN);
     }catch(_){
       setStatus('Network error. Please try again.','err');refreshSend();
     }finally{
@@ -4228,6 +4245,8 @@ $('#co-pay').addEventListener('click',async()=>{
         codeEl.value='';codeEl.disabled=true;stopCooldown();return;
       }
       if(data.error==='expired'||data.error==='no_code'){setStatus('Your code expired or wasn’t found — please resend.','err');codeEl.value='';return;}
+      /* clear so retyping the code re-fires this handler and retries */
+      if(data.error==='verification_unavailable'){setStatus('We couldn’t check your code just now. Please try again in a moment.','err');codeEl.value='';codeEl.focus();return;}
       const rem=data.attemptsRemaining;
       setStatus('Incorrect code.'+(rem!=null?' '+rem+' attempt'+(rem===1?'':'s')+' remaining.':''),'err');
       codeEl.value='';codeEl.focus();

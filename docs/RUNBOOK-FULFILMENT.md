@@ -31,6 +31,9 @@ which is a dev-only configuration.
 `degraded:true` with `warnings:["kv_unreachable"]` means orders still complete
 but nothing is durable — go to §1a.
 
+`ready:false` with `missing:["emailVerification"]` is a different complaint and
+has its own section: new orders are being **refused at checkout** — go to §1b.
+
 ## 1a. The durable store is unreachable
 
 `checks.kv` is a **live** write + read-back, not an env check, so this is the
@@ -68,6 +71,48 @@ curl -s -H "x-cron-secret: $CRON_SECRET" "$SITE/api/keepalive" | jq
 
 `reachable:true` with an advancing `hits` is healthy; a 503 means the store is
 gone again. The cron's run history is in Vercel → Project → Cron Jobs.
+
+## 1b. Nobody can check out ("please verify your email" / 503)
+
+Symptom: buyers reach checkout step 2 and the code never arrives, or the status
+line reads *"We couldn't start verification just now"*. `/api/health` shows
+`ready:false`, `missing:["emailVerification"]`.
+
+Cause: checkout email verification keeps its codes and its "this address was
+verified" marker in the durable store, and in production it will not use
+anything else. So either the store is unset, or it is not answering (§1a).
+
+This is deliberate, and it is **not** a bug to route around. Memory is not a
+weaker version of KV here, it is wrong: the instance that emails a code is
+usually not the one that checks it, so a buyer would be told their correct code
+is wrong — and `create-session`, which re-reads the marker, would refuse a buyer
+who did verify. Both failures are silent and intermittent. Refusing loudly is
+the same call the site already makes for a missing Resend key.
+
+What is NOT affected: every order already paid for. Fulfilment rebuilds those
+from the Stripe session metadata and still emails the certificates (§1a).
+
+Logs, in order of what they tell you:
+
+```bash
+vercel logs --since 1h | grep -E 'verify\.send_refused|verify\.check_unavailable|create_session\.refused|kv\.unreachable'
+```
+
+| stage + reason | meaning |
+|---|---|
+| `verify.send_refused` · `store_not_configured` | `KV_REST_API_*` unset in this environment |
+| `verify.send_refused` · `store_unavailable` | store configured, not answering — §1a |
+| `verify.send_refused` · `resend_not_configured` | `RESEND_API_KEY` unset; no code can be delivered |
+| `create_session.refused` · `verification_unavailable` | store died between verifying and paying |
+| `create_session.refused` · `email_not_verified` | working as intended — the buyer skipped the code, or someone posted at the endpoint directly |
+
+Fix: restore the store (§1a steps 1–2), then `curl -s "$SITE/api/health" | jq
+'.ready, .checks.emailVerification'` → `true, true`. No replay is needed — no
+order was created.
+
+A rate-limited buyer is a different, benign case: `verify.send_rate_limited`
+means the 60-second per-address claim or the per-IP cap did its job. Nothing to
+do.
 
 ## 2. Look at the order (read-only, changes nothing)
 
@@ -175,3 +220,13 @@ Where it stops tells you what broke:
 - **Probe commands are unique per run.** A framework-cached HTTP response once
   made a healthy store report a 503 — and the same mechanism can make a dead
   store look alive, which is worse.
+- **Email verification never falls back to memory, and `create-session` always
+  re-checks it.** Codes in per-instance memory told real buyers their correct
+  code was wrong; a browser flag alone let an order be placed for an address
+  nobody had proved they controlled. Do not "fix" the 503 by degrading to
+  memory, and do not drop the `isVerified()` call to save a round trip — the
+  check costs one KV read and is the only thing standing between an unverified
+  address and a charge.
+- **The verified marker is read, not consumed.** A customer who bounces off the
+  Stripe page and retries must be able to pay without verifying again; the
+  30-minute TTL is what bounds the permission.

@@ -59,7 +59,7 @@ astralis/
 │   │   ├── orders/[id]/
 │   │   │   ├── data/route.js            # GET → cert personalisation for client-side viewer
 │   │   │   └── certificate/[certId]/route.js # GET → download PDF/PNG (token-gated)
-│   │   ├── verify-email/                # 6-digit email verification (send/check/store/template)
+│   │   ├── verify-email/                # 6-digit email verification (send/check/store/template, KV-backed)
 │   │   └── contact/route.js             # POST → contact form → support inbox (Resend)
 │   └── lib/                # Backend logic (pure-ish modules, see §6)
 │
@@ -175,14 +175,36 @@ Entirely client‑side and deterministic (§3). "Claiming" a star reserves it fo
 
 ```
 client → POST /api/verify-email/send-code {email}
-         → 6-digit CSPRNG code saved in an in-memory store (10-min TTL),
-           emailed via Resend; rate-limited (60s) per email
+         → 60s resend claim per address (SET NX in KV — atomic, so two
+           concurrent requests cannot both send), plus per-IP + global caps
+         → 6-digit CSPRNG code, stored in Vercel KV as a SALTED SHA-256
+           with a 10-min TTL, emailed via Resend
 client → POST /api/verify-email/check-code {email, code}
-         → consumes one of 5 attempts; success unlocks "Continue to payment"
+         → consumes one of 5 attempts (atomic INCR); on success the code is
+           burned and a 30-min "verified" marker is written
+client → POST /api/checkout/create-session
+         → RE-READS that marker server-side before creating the Stripe
+           session; 403 email_not_verified without it
 ```
 
-This is a **UX gate**, not an authorisation boundary — the price and order are
-still validated server‑side at checkout.
+This **is** an authorisation boundary, not only a UX gate: the browser's
+`emailVerified` flag just enables a button, and the endpoint is public. The
+price and the order are still validated independently (the client never sends
+amounts).
+
+Four KV records per address, all TTL-bounded so nothing needs sweeping —
+`vcode:` (the hash), `vatt:` (attempts), `vcool:` (the resend claim), `vok:`
+(the verification). Keys are a truncated SHA-256 of the address, so a store dump
+is not a mailing list, and the code is only ever stored hashed: the one value
+that could be typed into the form is never at rest.
+
+**It cannot degrade to memory.** A code written to one instance's memory is
+invisible to the instance that checks it, and a marker invisible to
+`create-session` refuses a buyer who did verify — both silent and intermittent.
+So in production an unconfigured or unreachable store makes all three routes
+answer 503 and no new order can be placed. Orders already paid for still fulfil
+(Stripe metadata fallback). See §11 and `checks.emailVerification` in
+`/api/health`.
 
 ### 5.3 Checkout → payment → fulfilment
 
@@ -297,7 +319,9 @@ Two subtleties worth knowing (both are commented at the source):
 - **Without Vercel KV** (`KV_REST_API_URL` / `KV_REST_API_TOKEN` unset),
   snapshots live only in the instance that created them. The confirmation email
   is rendered inline at checkout so it still works, but the portal/download links
-  may 404 from a different instance. **KV is recommended for production.**
+  may 404 from a different instance. **KV is REQUIRED in production** — checkout
+  email verification has no other home, so without it new orders are refused
+  (§5.2).
 
 ---
 
@@ -307,7 +331,10 @@ Two subtleties worth knowing (both are commented at the source):
 - **Webhook integrity** — Stripe signatures verified against the raw body.
 - **Tokenised access** — order portal + downloads gated by HMAC‑SHA256 tokens
   (`ids.js`), compared in constant time. Set `ORDER_TOKEN_SECRET` in production.
-- **Email verification** — CSPRNG codes, rate‑limited, never logged or returned.
+- **Email verification** — CSPRNG codes, stored only as salted SHA‑256 in KV,
+  compared in constant time, never logged or returned. Three limits (60s per
+  address via SET NX, per‑IP, global) and 5 attempts per code.
+  `create-session` re‑checks the result server‑side, so it gates the charge.
 - **Transport** — HSTS (2 years, preload), TLS 1.2/1.3, HTTP→HTTPS and
   www→apex redirects at the edge and again in middleware; `X-Powered-By` off.
 - **No third‑party scripts** beyond Three.js + Google Fonts on the marketing page.
@@ -329,7 +356,7 @@ All variables are documented in [`.env.example`](../.env.example). Summary:
 | `ORDER_NOTIFY_EMAIL` | Recommended | Where internal "new order" notifications go. |
 | `NEXT_PUBLIC_SITE_URL` | Recommended | Absolute origin for success/cancel + email links. |
 | `ORDER_TOKEN_SECRET` | **Yes in prod** | HMAC secret for the no‑login link tokens. |
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Recommended in prod | Durable storage (Vercel KV / Upstash). |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | **Required in prod** | Durable storage (Vercel KV / Upstash). Holds the email-verification codes + markers, so without it new orders are refused (§5.2). |
 | `PUPPETEER_EXECUTABLE_PATH` | Local dev only | Path to system Chrome so certificates render locally. Leave unset on Vercel. |
 
 ---
@@ -360,8 +387,13 @@ There is no test suite or linter configured.
 - **`orders.js` is in‑memory.** Working order state is per‑instance and lost on
   recycle. Durable fulfilment relies on `store.js` + KV; without KV, portal
   links are unreliable across instances. *Next step: back both with KV/Postgres.*
-- **`verify-email/store.js` is in‑memory.** A code can be lost if the instance
-  recycles between send and check (rare in the 10‑minute window). *Next step: KV.*
+- **Verification couples new sales to the store.** `verify-email/store.js` is
+  KV‑backed (it was in‑memory, which silently broke verification across
+  instances), and since a code has nowhere else to live, an unreachable store
+  now stops NEW orders rather than degrading. Fulfilment of orders already paid
+  for is unaffected. The daily keepalive cron and `/api/health` exist to keep
+  that from being discovered by a customer. *Next step: nothing pending — but
+  treat `checks.emailVerification: false` as an outage, not a warning.*
 - **Dual HTML files.** `public/index.html` and `astralis.html` are kept in sync
   by hand. *Next step: a build step or pre‑commit hook to generate the copy.*
 - **One ~4,000‑line front‑end file.** Deliberate (zero dependencies, trivially
